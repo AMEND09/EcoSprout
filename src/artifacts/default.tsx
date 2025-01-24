@@ -1,14 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Droplet, Leaf, LayoutDashboard, Info, AlertTriangle, Trash2, Menu, Edit3, Calendar } from 'lucide-react';
+import { Droplet, Leaf, Sun, LayoutDashboard, Info, AlertTriangle, Bug, Trash2, Menu, Edit3 } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -46,7 +44,6 @@ interface Task {
 
 interface Issue {
   id: number;
-  fieldId?: number;  // Add this line
   type: string;
   description: string;
   severity: string;
@@ -60,13 +57,16 @@ interface ConfirmDelete {
   date?: string;
 }
 
-interface ScheduleItem {
+interface CropPlanEvent {
   id: number;
-  cropId: number;
-  type: 'water' | 'fertilize' | 'harvest';
-  date: string;
-  notes: string;
+  title: string;
+  start: Date;
+  end: Date;
+  fieldId: number;
+  type: 'planting' | 'fertilizing' | 'harvesting' | 'other';
+  notes?: string;
 }
+
 
 const calculateWaterEfficiency = (
   waterUsage: WaterUsage,
@@ -107,11 +107,11 @@ const Navigation: React.FC<{ activeTab: string, setActiveTab: (tab: string) => v
     { value: "overview", label: "Overview" },
     { value: "water", label: "Water Management" },
     { value: "crops", label: "Crops" },
-    { value: "cropplan", label: "Crop Plan" },
-    { value: "issues", label: "Tasks/Issues" },
+    { value: "issues", label: "Field Issues" },
     { value: "reports", label: "Reports" },
     { value: "history", label: "History" },
-    { value: "instructions", label: "Instructions" }
+    { value: "instructions", label: "Instructions" },
+    { value: "cropplan", label: "Crop Plan" }
   ];
 
   return (
@@ -150,10 +150,13 @@ const DefaultComponent: React.FC = () => {
   const [newField, setNewField] = useState({ name: '', size: '', crop: '' });
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [newWaterUsage, setNewWaterUsage] = useState({ fieldId: '', amount: '', date: '' });
+  const [isAddingWaterUsage, setIsAddingWaterUsage] = useState(false);
   const [isEditingWaterUsage, setIsEditingWaterUsage] = useState(false);
   const [editingWaterUsage, setEditingWaterUsage] = useState<WaterUsage | null>(null);
+  const [isAddingFertilizer, setIsAddingFertilizer] = useState(false);
   const [isEditingFertilizer, setIsEditingFertilizer] = useState(false);
   const [editingFertilizer, setEditingFertilizer] = useState<any | null>(null);
+  const [isAddingHarvest, setIsAddingHarvest] = useState(false);
   const [isEditingHarvest, setIsEditingHarvest] = useState(false);
   const [editingHarvest, setEditingHarvest] = useState<any | null>(null);
   const [newFertilizer, setNewFertilizer] = useState({ fieldId: '', type: '', amount: '', date: '' });
@@ -162,17 +165,14 @@ const DefaultComponent: React.FC = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [confirmDelete, setConfirmDelete] = useState<ConfirmDelete | null>(null);
-  const [selectedFieldForWater, setSelectedFieldForWater] = useState<string>('all');
-  const [selectedFieldForIssues] = useState<string>('all');
-  const [selectedFieldForReport, setSelectedFieldForReport] = useState<string>('all');
-  const [selectedFieldForSustainability, setSelectedFieldForSustainability] = useState<string>('all');
-  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>(() => {
-    const savedSchedule = localStorage.getItem('scheduleItems');
-    return savedSchedule ? JSON.parse(savedSchedule) : [];
+  const [cropPlanEvents, setCropPlanEvents] = useState<CropPlanEvent[]>(() => {
+    const savedEvents = localStorage.getItem('cropPlanEvents');
+    return savedEvents ? JSON.parse(savedEvents, (key, value) => {
+      if (key === 'start' || key === 'end') return new Date(value);
+      return value;
+    }) : [];
   });
-  const [isAddingScheduleItem, setIsAddingScheduleItem] = useState(false);
-  const [activeDialog, setActiveDialog] = useState<'water' | 'fertilizer' | 'harvest' | null>(null);
-  
+
   useEffect(() => {
     localStorage.setItem('fields', JSON.stringify(fields));
   }, [fields]);
@@ -182,8 +182,8 @@ const DefaultComponent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('scheduleItems', JSON.stringify(scheduleItems));
-  }, [scheduleItems]);
+    localStorage.setItem('cropPlanEvents', JSON.stringify(cropPlanEvents));
+  }, [cropPlanEvents]);
 
   const fetchUserLocation = async () => {
     try {
@@ -201,7 +201,7 @@ const DefaultComponent: React.FC = () => {
       const response = await fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,weathercode&temperature_unit=fahrenheit&timezone=auto&forecast_days=10`
       );
-      const weatherData = await response.json();
+      const data = await response.json();
 
       const getWeatherInfo = (code: number) => {
         switch (true) {
@@ -213,11 +213,11 @@ const DefaultComponent: React.FC = () => {
         }
       };
 
-      const formattedData = weatherData.daily.time.map((date: string, index: number) => {
-        const weatherInfo = getWeatherInfo(weatherData.daily.weathercode[index]);
+      const formattedData = data.daily.time.map((date: string, index: number) => {
+        const weatherInfo = getWeatherInfo(data.daily.weathercode[index]);
         return {
           date: new Date(date).toLocaleDateString(),
-          temp: weatherData.daily.temperature_2m_max[index],
+          temp: data.daily.temperature_2m_max[index],
           weather: weatherInfo.desc,
           icon: weatherInfo.icon
         };
@@ -386,10 +386,6 @@ const DefaultComponent: React.FC = () => {
     setConfirmDelete({ id, type: 'task' });
   };
 
-  const handleDeleteScheduleItem = (id: number) => {
-    setConfirmDelete({ id, type: 'scheduleItem' });
-  };
-
   const confirmDeleteAction = () => {
     if (confirmDelete) {
       switch (confirmDelete.type) {
@@ -432,9 +428,6 @@ const DefaultComponent: React.FC = () => {
         case 'task':
           setTasks(tasks.filter(task => task.id !== confirmDelete.id));
           break;
-        case 'scheduleItem':
-          setScheduleItems(scheduleItems.filter(item => item.id !== confirmDelete.id));
-          break;
         default:
           break;
       }
@@ -444,31 +437,45 @@ const DefaultComponent: React.FC = () => {
 
   const TaskManager = () => {
     const [taskInput, setTaskInput] = useState({ title: '', dueDate: '', priority: 'medium' });
-    const [showAddTask, setShowAddTask] = useState(false);
-  
+
     const handleTaskSubmit = () => {
       setTasks([...tasks, { ...taskInput, id: Date.now(), completed: false }]);
       setTaskInput({ title: '', dueDate: '', priority: 'medium' });
-      setShowAddTask(false);
     };
-  
+
     return (
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Tasks</CardTitle>
-            <Button onClick={() => setShowAddTask(true)}>Add Task</Button>
-          </div>
+          <CardTitle>Field Tasks</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            <div className="flex gap-2">
+              <Input 
+                name="title"
+                placeholder="New task"
+                value={taskInput.title}
+                onChange={(e) => setTaskInput(prev => ({ ...prev, title: e.target.value }))}
+              />
+              <Input 
+                name="dueDate"
+                type="date"
+                value={taskInput.dueDate}
+                onChange={(e) => setTaskInput(prev => ({ ...prev, dueDate: e.target.value }))}
+              />
+              <Button onClick={handleTaskSubmit}>Add</Button>
+            </div>
+            <div className="space-y-2">
               {tasks.map(task => (
-                <div key={task.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div 
+                  key={task.id} 
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                >
                   <span className={task.completed ? 'line-through' : ''}>
                     {task.title}
                   </span>
                   <div className="flex gap-2">
+                    <span className="text-sm text-gray-500">{task.dueDate}</span>
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -493,55 +500,55 @@ const DefaultComponent: React.FC = () => {
             </div>
           </div>
         </CardContent>
-        <Dialog open={showAddTask} onOpenChange={setShowAddTask}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Task</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Input 
-                  name="title"
-                  placeholder="New task"
-                  value={taskInput.title}
-                  onChange={(e) => setTaskInput(prev => ({ ...prev, title: e.target.value }))}
-                />
-                <Button onClick={handleTaskSubmit}>Add</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </Card>
     );
   };
-  
-  const IssueManager = () => {
+
+  const IssueTracker = () => {
     const [issueInput, setIssueInput] = useState({ type: '', description: '', severity: 'low' });
-    const [showAddIssue, setShowAddIssue] = useState(false);
-  
+
     const handleIssueSubmit = () => {
-      setIssues([...issues, { 
-        ...issueInput, 
-        id: Date.now(), 
-        status: 'open', 
-        dateReported: new Date(),
-        fieldId: selectedFieldForIssues === 'all' ? undefined : parseInt(selectedFieldForIssues)
-      }]);
+      setIssues([...issues, { ...issueInput, id: Date.now(), status: 'open', dateReported: new Date() }]);
       setIssueInput({ type: '', description: '', severity: 'low' });
-      setShowAddIssue(false);
     };
-  
+
     return (
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Crop Issues</CardTitle>
-            <Button onClick={() => setShowAddIssue(true)}>Report Issue</Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Bug className="h-5 w-5" />
+            Field Issues
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2">
+              <Input 
+                name="type"
+                placeholder="Issue type (pest, disease, etc.)"
+                value={issueInput.type}
+                onChange={(e) => setIssueInput(prev => ({ ...prev, type: e.target.value }))}
+              />
+              <select 
+                name="severity"
+                className="border rounded p-2"
+                value={issueInput.severity}
+                onChange={(e) => setIssueInput(prev => ({ ...prev, severity: e.target.value }))}
+              >
+                <option value="low">Low Severity</option>
+                <option value="medium">Medium Severity</option>
+                <option value="high">High Severity</option>
+              </select>
+            </div>
+            <Input 
+              name="description"
+              placeholder="Description"
+              value={issueInput.description}
+              onChange={(e) => setIssueInput(prev => ({ ...prev, description: e.target.value }))}
+            />
+            <Button onClick={handleIssueSubmit} className="w-full">Report Issue</Button>
+            
+            <div className="space-y-2">
               {issues.map(issue => (
                 <Alert key={issue.id} variant={issue.severity === 'high' ? 'destructive' : 'default'}>
                   <AlertTriangle className="h-4 w-4" />
@@ -551,62 +558,29 @@ const DefaultComponent: React.FC = () => {
                       <span className="text-sm">{issue.severity} severity</span>
                     </div>
                     <p className="text-sm">{issue.description}</p>
-                    {issue.status === 'open' && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleResolveIssue(issue.id)}
-                      >
-                        Resolve
-                      </Button>
-                    )}
+                    <div className="flex justify-end">
+                      {issue.status === 'open' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleResolveIssue(issue.id)}
+                        >
+                          Resolve
+                        </Button>
+                      )}
+                    </div>
                   </AlertDescription>
                 </Alert>
               ))}
             </div>
           </div>
         </CardContent>
-        <Dialog open={showAddIssue} onOpenChange={setShowAddIssue}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Report New Issue</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Input 
-                  name="type"
-                  placeholder="Issue type"
-                  value={issueInput.type}
-                  onChange={(e) => setIssueInput(prev => ({ ...prev, type: e.target.value }))}
-                />
-                <select 
-                  name="severity"
-                  className="w-full border rounded p-2"
-                  value={issueInput.severity}
-                  onChange={(e) => setIssueInput(prev => ({ ...prev, severity: e.target.value }))}
-                >
-                  <option value="low">Low Severity</option>
-                  <option value="medium">Medium Severity</option>
-                  <option value="high">High Severity</option>
-                </select>
-                <Input 
-                  name="description"
-                  placeholder="Description"
-                  value={issueInput.description}
-                  onChange={(e) => setIssueInput(prev => ({ ...prev, description: e.target.value }))}
-                />
-                <Button onClick={handleIssueSubmit} className="w-full">Report Issue</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </Card>
     );
   };
-  
 
-  const calculateSustainabilityMetrics = (filteredFields: Field[]) => {
-    if (filteredFields.length === 0 || weatherData.length === 0) return null;
+  const sustainabilityMetrics = useMemo(() => {
+    if (fields.length === 0 || weatherData.length === 0) return null;
   
     const calculateFieldMetrics = (field: Field) => {
       const waterUsageWithEfficiency = field.waterHistory.map(usage => ({
@@ -659,11 +633,11 @@ const DefaultComponent: React.FC = () => {
       };
     };
   
-    const fieldMetrics = filteredFields.map(calculateFieldMetrics);
+    const fieldMetrics = fields.map(calculateFieldMetrics);
   
-    const avgWaterEfficiency = fieldMetrics.reduce((sum, metrics) => sum + metrics.waterEfficiency, 0) / filteredFields.length;
-    const avgOrganicScore = fieldMetrics.reduce((sum, metrics) => sum + metrics.organicScore, 0) / filteredFields.length;
-    const avgHarvestEfficiency = fieldMetrics.reduce((sum, metrics) => sum + metrics.harvestEfficiency, 0) / filteredFields.length;
+    const avgWaterEfficiency = fieldMetrics.reduce((sum, metrics) => sum + metrics.waterEfficiency, 0) / fields.length;
+    const avgOrganicScore = fieldMetrics.reduce((sum, metrics) => sum + metrics.organicScore, 0) / fields.length;
+    const avgHarvestEfficiency = fieldMetrics.reduce((sum, metrics) => sum + metrics.harvestEfficiency, 0) / fields.length;
   
     const currentWeather = weatherData[0];
     let weatherMultiplier = 1;
@@ -684,225 +658,95 @@ const DefaultComponent: React.FC = () => {
       weatherMultiplier
     );
   
-    return (
-      <div className="text-center">
-        <div className="text-6xl font-bold mb-4" style={{
-          color: overallScore >= 80 ? '#16a34a' : 
-                 overallScore >= 60 ? '#ca8a04' : '#dc2626'
-        }}>
-          {overallScore}
-        </div>
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className="text-gray-500">Water Efficiency</p>
-            <p className="font-medium text-blue-600">
-              {Math.round(avgWaterEfficiency)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500">Organic Practices</p>
-            <p className="font-medium text-green-600">
-              {Math.round(avgOrganicScore)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500">Harvest Efficiency</p>
-            <p className="font-medium text-yellow-600">
-              {Math.round(avgHarvestEfficiency)}%
-            </p>
-          </div>
-        </div>
-        <div className="mt-4 text-sm text-gray-500">
-          <p className="mb-2">Recommendations:</p>
-          <ul className="text-left list-disc pl-4 space-y-1">
-            {avgWaterEfficiency < 80 && (
-              <li>Consider implementing drip irrigation to improve water efficiency</li>
-            )}
-            {avgOrganicScore < 80 && (
-              <li>Explore organic fertilizer alternatives</li>
-            )}
-            {avgHarvestEfficiency < 80 && (
-              <li>Review crop density and soil health management</li>
-            )}
-          </ul>
-        </div>
-      </div>
-    );
-  };
-
-  const WeatherPreview = () => {
-    const weatherInfo = useMemo<WeatherData[]>(() => {
-      return weatherData?.slice(0, 5) || [];
-    }, [weatherData]);
-  
-    return (
-      <div className="space-y-4">
-        {weatherInfo && weatherInfo.length > 0 ? (
-          <div className="grid grid-cols-5 gap-2">
-            {weatherInfo.map((day: WeatherData, index: number) => (
-              <div key={index} className="text-center p-1 border rounded">
-                <p className="text-xs font-medium truncate">{day.date}</p>
-                <p className="text-xl my-1">{day.icon}</p>
-                <p className="text-xs text-gray-600 truncate">{day.weather}</p>
-                <p className="text-sm font-bold">{Math.round(day.temp)}°F</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center text-gray-500 py-4">
-            Loading weather data...
-          </div>
-        )}
-      </div>
-    );
-  };
+    return {
+      overallScore,
+      waterEfficiency: Math.round(avgWaterEfficiency),
+      organicScore: Math.round(avgOrganicScore),
+      harvestEfficiency: Math.round(avgHarvestEfficiency),
+      weatherImpact: Math.round((1 - weatherMultiplier) * 100) // Percentage impact of weather
+    };
+  }, [fields, weatherData]);
   
 
-const CropPlan = () => {
-  const [newScheduleItem, setNewScheduleItem] = useState<ScheduleItem>({
-    id: Date.now(),
-    cropId: 0,
-    type: 'water',
-    date: '',
-    notes: ''
-  });
-
-  const handleAddScheduleItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    setScheduleItems([...scheduleItems, newScheduleItem]);
-    setIsAddingScheduleItem(false);
-    setNewScheduleItem({
-      id: Date.now(),
-      cropId: 0,
-      type: 'water',
-      date: '',
-      notes: ''
-    });
-  };
-
-  const sortedScheduleItems = useMemo(() => {
-    return [...scheduleItems].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [scheduleItems]);
-
-  const ScheduleContent = () => (
-    <>
-      <div className="space-y-2">
-        {sortedScheduleItems.length > 0 ? (
-          sortedScheduleItems.map(item => {
-            const field = fields.find(f => f.id === item.cropId);
-            return (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-2 border rounded bg-white"
-              >
-                <div className="flex items-center gap-2">
-                  {item.type === 'water' && <Droplet className="h-4 w-4 text-blue-500" />}
-                  {item.type === 'fertilize' && <Leaf className="h-4 w-4 text-green-500" />}
-                  {item.type === 'harvest' && <LayoutDashboard className="h-4 w-4 text-purple-500" />}
-                  <div>
-                    <p className="font-medium">{field?.name} - {item.type}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(item.date).toLocaleDateString()} {item.notes && `- ${item.notes}`}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeleteScheduleItem(item.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            );
-          })
-        ) : (
-          <div className="text-center text-gray-500 py-4">
-            No tasks scheduled. Click "Add Task" to get started.
+  const SustainabilityScoreCard = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sustainability Score</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center">
+          <div className="text-6xl font-bold mb-4" style={{
+            color: sustainabilityMetrics?.overallScore! >= 80 ? '#16a34a' : 
+                   sustainabilityMetrics?.overallScore! >= 60 ? '#ca8a04' : '#dc2626'
+          }}>
+            {sustainabilityMetrics ? sustainabilityMetrics.overallScore : '-'}
           </div>
-        )}
-      </div>
-
-      <Dialog open={isAddingScheduleItem} onOpenChange={setIsAddingScheduleItem}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Schedule Item</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAddScheduleItem} className="space-y-4">
+          <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <Label>Field</Label>
-              <select 
-                className="w-full p-2 border rounded"
-                value={newScheduleItem.cropId}
-                onChange={(e) => setNewScheduleItem({ ...newScheduleItem, cropId: parseInt(e.target.value) })}
-                required
-              >
-                <option value="">Select Field</option>
-                {fields.map(field => (
-                  <option key={field.id} value={field.id}>{field.name}</option>
-                ))}
-              </select>
+              <p className="text-gray-500">Water Efficiency</p>
+              <p className="font-medium text-blue-600">
+                {sustainabilityMetrics ? `${sustainabilityMetrics.waterEfficiency}%` : '-'}
+              </p>
             </div>
             <div>
-              <Label>Type</Label>
-              <select 
-                className="w-full p-2 border rounded"
-                value={newScheduleItem.type}
-                onChange={(e) => setNewScheduleItem({ ...newScheduleItem, type: e.target.value as 'water' | 'fertilize' | 'harvest' })}
-                required
-              >
-                <option value="">Select Type</option>
-                <option value="water">Water</option>
-                <option value="fertilize">Fertilize</option>
-                <option value="harvest">Harvest</option>
-              </select>
+              <p className="text-gray-500">Organic Practices</p>
+              <p className="font-medium text-green-600">
+                {sustainabilityMetrics ? `${sustainabilityMetrics.organicScore}%` : '-'}
+              </p>
             </div>
             <div>
-              <Label>Date</Label>
-              <Input 
-                type="date"
-                value={newScheduleItem.date}
-                onChange={(e) => setNewScheduleItem({ ...newScheduleItem, date: e.target.value })}
-                required
-              />
+              <p className="text-gray-500">Harvest Efficiency</p>
+              <p className="font-medium text-yellow-600">
+                {sustainabilityMetrics ? `${sustainabilityMetrics.harvestEfficiency}%` : '-'}
+              </p>
             </div>
-            <div>
-              <Label>Notes</Label>
-              <Input 
-                value={newScheduleItem.notes}
-                onChange={(e) => setNewScheduleItem({ ...newScheduleItem, notes: e.target.value })}
-              />
+          </div>
+          {sustainabilityMetrics && (
+            <div className="mt-4 text-sm text-gray-500">
+              <p className="mb-2">Recommendations:</p>
+              <ul className="text-left list-disc pl-4 space-y-1">
+                {sustainabilityMetrics.waterEfficiency < 80 && (
+                  <li>Consider implementing drip irrigation to improve water efficiency</li>
+                )}
+                {sustainabilityMetrics.organicScore < 80 && (
+                  <li>Explore organic fertilizer alternatives</li>
+                )}
+                {sustainabilityMetrics.harvestEfficiency < 80 && (
+                  <li>Review crop density and soil health management</li>
+                )}
+              </ul>
             </div>
-            <Button type="submit" className="w-full">Add Schedule Item</Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 
-  // When used in the main CropPlan tab
-  if (activeTab === 'cropplan') {
-    return (
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Scheduled Tasks</CardTitle>
-            <Button onClick={() => setIsAddingScheduleItem(true)}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Add Task
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ScheduleContent />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // When used in the overview tab - removed button from header
-  return <ScheduleContent />;
-};
+  const WeatherPreview = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>10-Day Weather Preview</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {weatherData.length > 0 ? (
+            weatherData.map((day, index) => (
+              <div key={index} className="text-center p-2 border rounded">
+                <p className="text-sm font-medium">{day.date}</p>
+                <p className="text-2xl my-2">{day.icon}</p>
+                <p className="text-sm text-gray-600">{day.weather}</p>
+                <p className="text-lg font-bold">{Math.round(day.temp)}°F</p>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center text-gray-500">
+              Loading weather data...
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   const HistoryPage = () => {
     const allHistory = useMemo(() => {
@@ -948,19 +792,19 @@ const CropPlan = () => {
           setEditingWaterUsage(entry.usage);
           setNewWaterUsage({ fieldId: entry.fieldId.toString(), amount: entry.usage.amount.toString(), date: entry.usage.date });
           setIsEditingWaterUsage(true);
-          setActiveDialog('water'); // Use activeDialog instead
+          setIsAddingWaterUsage(true);
           break;
         case 'Fertilizer Usage':
           setEditingFertilizer(entry.fertilizer);
           setNewFertilizer({ fieldId: entry.fieldId.toString(), type: entry.fertilizer.type, amount: entry.fertilizer.amount.toString(), date: entry.fertilizer.date });
           setIsEditingFertilizer(true);
-          setActiveDialog('fertilizer'); // Use activeDialog instead
+          setIsAddingFertilizer(true);
           break;
         case 'Harvest':
           setEditingHarvest(entry.harvest);
           setNewHarvest({ fieldId: entry.fieldId.toString(), amount: entry.harvest.amount.toString(), date: entry.harvest.date });
           setIsEditingHarvest(true);
-          setActiveDialog('harvest'); // Use activeDialog instead
+          setIsAddingHarvest(true);
           break;
         default:
           break;
@@ -1210,8 +1054,8 @@ const CropPlan = () => {
             <p>In the Crops tab, you can manage fields, record fertilizer applications, and harvests. Add new fields here before tracking water usage or harvests in the "Overview" tab.</p>
           </div>
           <div>
-            <h2 className="font-bold">Tasks/Issues</h2>
-            <p>In the Tasks/Issues tab, you can report and track issues such as pests, diseases, and other problems affecting your fields. You can also resolve reported issues here.</p>
+            <h2 className="font-bold">Field Issues</h2>
+            <p>In the Field Issues tab, you can report and track issues such as pests, diseases, and other problems affecting your fields. You can also resolve reported issues here.</p>
           </div>
           <div>
             <h2 className="font-bold">Reports</h2>
@@ -1226,134 +1070,383 @@ const CropPlan = () => {
     </Card>
   );
 
-  const ReportsComponent = () => {
-    // Generate report data for the selected field or all fields
-    const reportData = useMemo(() => {
-      const filtered = selectedFieldForReport === 'all' 
-        ? fields 
-        : fields.filter(f => f.id.toString() === selectedFieldForReport);
+  const CropPlanCalendar = () => {
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [isAddingEvent, setIsAddingEvent] = useState(false);
+    const [newEvent, setNewEvent] = useState({
+      title: '',
+      start: new Date(),
+      end: new Date(),
+      fieldId: 0,
+      type: 'planting',
+      notes: ''
+    });
+
+    const daysInMonth = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth() + 1,
+      0
+    ).getDate();
+
+    const firstDayOfMonth = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      1
+    ).getDay();
+
+    const handleAddEvent = (e: React.FormEvent) => {
+      e.preventDefault();
+      setCropPlanEvents([...cropPlanEvents, {
+        id: Date.now(),
+        ...newEvent,
+        type: newEvent.type as 'planting' | 'fertilizing' | 'harvesting' | 'other'
+      }]);
+      setIsAddingEvent(false);
+      setNewEvent({
+        title: '',
+        start: new Date(),
+        end: new Date(),
+        fieldId: 0,
+        type: 'planting',
+        notes: ''
+      });
+    };
+
+    const getEventsForDay = (date: Date) => {
+      return cropPlanEvents.filter(event => {
+        const eventDate = new Date(event.start);
+        return eventDate.getDate() === date.getDate() &&
+               eventDate.getMonth() === date.getMonth() &&
+               eventDate.getFullYear() === date.getFullYear();
+      });
+    };
+
+    const eventColors = {
+      planting: 'bg-blue-100 text-blue-800',
+      fertilizing: 'bg-green-100 text-green-800',
+      harvesting: 'bg-purple-100 text-purple-800',
+      other: 'bg-gray-100 text-gray-800'
+    };
+
+    const handleExportPlan = () => {
+      const exportData = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        events: cropPlanEvents
+      };
   
-      const waterData = filtered.flatMap(field => 
-        field.waterHistory.map(usage => ({
-          date: new Date(usage.date).toLocaleDateString(),
-          type: 'Water Usage',
-          amount: usage.amount,
-          field: field.name
-        }))
-      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `crop-plan-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
   
-      const fertilizerData = filtered.flatMap(field => 
-        field.fertilizerHistory.map(usage => ({
-          date: new Date(usage.date).toLocaleDateString(),
-          type: 'Fertilizer',
-          amount: usage.amount,
-          field: field.name
-        }))
-      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const handleImportPlan = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
   
-      const harvestData = filtered.flatMap(field => 
-        field.harvestHistory.map(harvest => ({
-          date: new Date(harvest.date).toLocaleDateString(),
-          type: 'Harvest',
-          amount: harvest.amount,
-          field: field.name
-        }))
-      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const reader = new FileReader();
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        try {
+          const importedData = JSON.parse(e.target?.result as string);
+          
+          // Validate the imported data
+          if (!importedData.events || !Array.isArray(importedData.events)) {
+            throw new Error('Invalid file format');
+          }
   
-      return {
-        water: waterData,
-        fertilizer: fertilizerData,
-        harvest: harvestData,
-        totals: {
-          water: waterData.reduce((sum, item) => sum + item.amount, 0),
-          fertilizer: fertilizerData.reduce((sum, item) => sum + item.amount, 0),
-          harvest: harvestData.reduce((sum, item) => sum + item.amount, 0)
+          // Convert date strings back to Date objects
+          const processedEvents = importedData.events.map((event: any) => ({
+            ...event,
+            start: new Date(event.start),
+            end: new Date(event.end)
+          }));
+  
+          // Merge with existing events, avoid duplicates by checking IDs
+          const existingIds = new Set(cropPlanEvents.map(e => e.id));
+          const newEvents = processedEvents.filter((e: CropPlanEvent) => !existingIds.has(e.id));
+          
+          setCropPlanEvents([...cropPlanEvents, ...newEvents]);
+        } catch (error) {
+          alert('Error importing file: Invalid format');
         }
       };
-    }, [fields, selectedFieldForReport]);
+      reader.readAsText(file);
+    };
+
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Crop Planning Calendar</CardTitle>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const newDate = new Date(selectedDate);
+                  newDate.setMonth(newDate.getMonth() - 1);
+                  setSelectedDate(newDate);
+                }}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const newDate = new Date(selectedDate);
+                  newDate.setMonth(newDate.getMonth() + 1);
+                  setSelectedDate(newDate);
+                }}
+              >
+                Next
+              </Button>
+              <div className="space-x-2">
+                <Button onClick={() => setIsAddingEvent(true)}>Add Event</Button>
+                <Button variant="outline" onClick={handleExportPlan}>
+                  Export
+                </Button>
+                <div className="relative inline-block">
+                  <Button variant="outline" onClick={() => document.getElementById('importFile')?.click()}>
+                    Import
+                  </Button>
+                  <input
+                    type="file"
+                    id="importFile"
+                    className="hidden"
+                    accept=".json"
+                    onChange={handleImportPlan}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-lg font-medium">
+            {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-7 gap-1">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="text-center font-medium p-2">
+                {day}
+              </div>
+            ))}
+            {Array.from({ length: firstDayOfMonth }).map((_, index) => (
+              <div key={`empty-${index}`} className="p-2 border min-h-[100px]" />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, index) => {
+              const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), index + 1);
+              const events = getEventsForDay(date);
+              
+              return (
+                <div key={index} className="p-2 border min-h-[100px]">
+                  <div className="font-medium">{index + 1}</div>
+                  <div className="space-y-1">
+                    {events.map(event => (
+                      <div
+                        key={event.id}
+                        className={`p-1 rounded text-xs truncate ${eventColors[event.type]}`}
+                        title={`${event.title}\nField: ${fields.find(f => f.id === event.fieldId)?.name}\n${event.notes}`}
+                      >
+                        {event.title}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+
+        <Dialog open={isAddingEvent} onOpenChange={setIsAddingEvent}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Crop Plan Event</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAddEvent} className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Field</Label>
+                <select
+                  className="w-full p-2 border rounded"
+                  value={newEvent.fieldId}
+                  onChange={(e) => setNewEvent({ ...newEvent, fieldId: Number(e.target.value) })}
+                  required
+                >
+                  <option value="">Select Field</option>
+                  {fields.map(field => (
+                    <option key={field.id} value={field.id}>{field.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Type</Label>
+                <select
+                  className="w-full p-2 border rounded"
+                  value={newEvent.type}
+                  onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
+                  required
+                >
+                  <option value="planting">Planting</option>
+                  <option value="fertilizing">Fertilizing</option>
+                  <option value="harvesting">Harvesting</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <Label>Start Date</Label>
+                <Input
+                  type="date"
+                  value={newEvent.start.toISOString().split('T')[0]}
+                  onChange={(e) => setNewEvent({ ...newEvent, start: new Date(e.target.value) })}
+                  required
+                />
+              </div>
+              <div>
+                <Label>End Date</Label>
+                <Input
+                  type="date"
+                  value={newEvent.end.toISOString().split('T')[0]}
+                  onChange={(e) => setNewEvent({ ...newEvent, end: new Date(e.target.value) })}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Notes</Label>
+                <Input
+                  value={newEvent.notes}
+                  onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
+                />
+              </div>
+              <Button type="submit" className="w-full">Add Event</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </Card>
+    );
+  };
+
+  const UpcomingCropPlan = () => {
+    const nextTwoWeeks = useMemo(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const twoWeeksFromNow = new Date(today);
+      twoWeeksFromNow.setDate(today.getDate() + 14);
+  
+      return cropPlanEvents
+        .filter(event => {
+          const eventDate = new Date(event.start);
+          eventDate.setHours(0, 0, 0, 0);
+          return eventDate >= today && eventDate <= twoWeeksFromNow;
+        })
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+        .slice(0, 5); // Show only next 5 events for cleaner UI
+    }, [cropPlanEvents]);
   
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Crop Performance Report</CardTitle>
-              <select
-                className="border rounded p-2"
-                value={selectedFieldForReport}
-                onChange={(e) => setSelectedFieldForReport(e.target.value)}
-              >
-                <option value="all">All Crops</option>
-                {fields.map(field => (
-                  <option key={field.id} value={field.id.toString()}>{field.name}</option>
-                ))}
-              </select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-blue-600">Water Usage</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{reportData.totals.water.toLocaleString()} gal</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-green-600">Fertilizer Used</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{reportData.totals.fertilizer.toLocaleString()} lbs</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-yellow-600">Total Harvest</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{reportData.totals.harvest.toLocaleString()} bushels</p>
-                </CardContent>
-              </Card>
-            </div>
-  
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" allowDuplicatedCategory={false} />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    data={reportData.water}
-                    dataKey="amount"
-                    name="Water (gal)"
-                    stroke="#3b82f6"
-                    dot={false}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    data={reportData.harvest}
-                    dataKey="amount"
-                    name="Harvest (bushels)"
-                    stroke="#ca8a04"
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Upcoming Events</span>
+            <span className="text-sm font-normal text-gray-500">Next 14 days</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {nextTwoWeeks.length > 0 ? (
+              nextTwoWeeks.map(event => (
+                <div 
+                  key={event.id} 
+                  className={`p-2 rounded ${
+                    event.type === 'planting' ? 'bg-blue-50 border-l-4 border-blue-500' :
+                    event.type === 'fertilizing' ? 'bg-green-50 border-l-4 border-green-500' :
+                    event.type === 'harvesting' ? 'bg-purple-50 border-l-4 border-purple-500' : 
+                    'bg-gray-50 border-l-4 border-gray-500'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{event.title}</p>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span>Field: {fields.find(f => f.id === event.fieldId)?.name}</span>
+                        <span>•</span>
+                        <span>{event.type}</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500 whitespace-nowrap">
+                      {new Date(event.start).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {event.notes && (
+                    <p className="mt-1 text-sm text-gray-500 italic">
+                      {event.notes}
+                    </p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-gray-500 py-4">
+                No upcoming events in the next two weeks
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     );
   };
   
+  const FieldIssues = () => {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Field Issues</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {issues.length > 0 ? (
+              issues.map(issue => (
+                <div key={issue.id} className="p-3 border rounded">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium">{issue.type}</h3>
+                      <p className="text-sm text-gray-600">{issue.description}</p>
+                    </div>
+                    <span 
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        issue.severity === 'high' ? 'bg-red-100 text-red-800' :
+                        issue.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {issue.severity}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500">
+                    <p>Reported: {new Date(issue.dateReported).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-gray-500">No active issues</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div>
@@ -1367,43 +1460,35 @@ const CropPlan = () => {
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="water">Water Management</TabsTrigger>
                 <TabsTrigger value="crops">Crops</TabsTrigger>
-                <TabsTrigger value="cropplan">Crop Plan</TabsTrigger>
-                <TabsTrigger value="issues">Tasks/Issues</TabsTrigger>
+                <TabsTrigger value="issues">Field Issues</TabsTrigger>
                 <TabsTrigger value="reports">Reports</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
+                <TabsTrigger value="cropplan">Crop Plan</TabsTrigger>
                 <TabsTrigger value="instructions"><Info className="h-4 w-4 mr-2" />Instructions</TabsTrigger>
               </TabsList>
               <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
             <TabsContent value="overview">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card className="p-4 h-[300px]">
-                  <CardHeader className="p-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
                     <CardTitle>Quick Actions</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-2">
+                  <CardContent>
                     <div className="space-y-2">
-                      <Button className="w-full bg-blue-500 hover:bg-blue-600" onClick={() => setActiveDialog('water')}>
-                        <Droplet className="h-4 w-4 mr-2" />
-                        Record Water Usage
-                      </Button>
-                      <Button className="w-full bg-green-500 hover:bg-green-600" onClick={() => setActiveDialog('fertilizer')}>
-                        <Leaf className="h-4 w-4 mr-2" />
-                        Record Fertilizer
-                      </Button>
-                      <Button className="w-full bg-purple-500 hover:bg-purple-600" onClick={() => setActiveDialog('harvest')}>
-                        <LayoutDashboard className="h-4 w-4 mr-2" />
-                        Record Harvest
-                      </Button>
-                      
-                      {/* Add Quick Action Dialogs */}
-                      <Dialog open={activeDialog === 'water'} onOpenChange={() => setActiveDialog(null)}>
+                      <Dialog open={isAddingWaterUsage} onOpenChange={setIsAddingWaterUsage}>
+                        <DialogTrigger asChild>
+                          <Button className="w-full bg-blue-500 hover:bg-blue-600">
+                            <Droplet className="h-4 w-4 mr-2" />
+                            Record Water Usage
+                          </Button>
+                        </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Record Water Usage</DialogTitle>
                           </DialogHeader>
-                          <form onSubmit={handleAddWaterUsage} className="space-y-4">
+                          <form onSubmit={isEditingWaterUsage ? handleEditWaterUsage : handleAddWaterUsage} className="space-y-4">
                             <div>
                               <Label>Field</Label>
                               <select 
@@ -1436,17 +1521,23 @@ const CropPlan = () => {
                                 required
                               />
                             </div>
-                            <Button type="submit" className="w-full">Record Water Usage</Button>
+                            <Button type="submit" className="w-full">Save Water Usage</Button>
                           </form>
                         </DialogContent>
                       </Dialog>
 
-                      <Dialog open={activeDialog === 'fertilizer'} onOpenChange={() => setActiveDialog(null)}>
+                      <Dialog open={isAddingFertilizer} onOpenChange={setIsAddingFertilizer}>
+                        <DialogTrigger asChild>
+                          <Button className="w-full bg-green-500 hover:bg-green-600">
+                            <Leaf className="h-4 w-4 mr-2" />
+                            Record Fertilizer Application
+                          </Button>
+                        </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Record Fertilizer Usage</DialogTitle>
+                            <DialogTitle>Record Fertilizer Application</DialogTitle>
                           </DialogHeader>
-                          <form onSubmit={handleAddFertilizer} className="space-y-4">
+                          <form onSubmit={isEditingFertilizer ? handleEditFertilizer : handleAddFertilizer} className="space-y-4">
                             <div>
                               <Label>Field</Label>
                               <select 
@@ -1464,7 +1555,6 @@ const CropPlan = () => {
                             <div>
                               <Label>Type</Label>
                               <Input 
-                                placeholder="Fertilizer type"
                                 value={newFertilizer.type}
                                 onChange={(e) => setNewFertilizer({...newFertilizer, type: e.target.value})}
                                 required
@@ -1488,17 +1578,23 @@ const CropPlan = () => {
                                 required
                               />
                             </div>
-                            <Button type="submit" className="w-full">Record Fertilizer Usage</Button>
+                            <Button type="submit" className="w-full">Save Fertilizer Application</Button>
                           </form>
                         </DialogContent>
                       </Dialog>
 
-                      <Dialog open={activeDialog === 'harvest'} onOpenChange={() => setActiveDialog(null)}>
+                      <Dialog open={isAddingHarvest} onOpenChange={setIsAddingHarvest}>
+                        <DialogTrigger asChild>
+                          <Button className="w-full bg-purple-500 hover:bg-purple-600">
+                            <LayoutDashboard className="h-4 w-4 mr-2" />
+                            Record Harvest
+                          </Button>
+                        </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Record Harvest</DialogTitle>
                           </DialogHeader>
-                          <form onSubmit={handleAddHarvest} className="space-y-4">
+                          <form onSubmit={isEditingHarvest ? handleEditHarvest : handleAddHarvest} className="space-y-4">
                             <div>
                               <Label>Field</Label>
                               <select 
@@ -1531,140 +1627,42 @@ const CropPlan = () => {
                                 required
                               />
                             </div>
-                            <Button type="submit" className="w-full">Record Harvest</Button>
+                            <Button type="submit" className="w-full">Save Harvest</Button>
                           </form>
                         </DialogContent>
                       </Dialog>
                     </div>
                   </CardContent>
                 </Card>
-
-                <Card className="p-4 h-[300px]">
-                  <CardHeader className="p-2">
-                    <div className="flex justify-between items-center">
-                      <CardTitle>Sustainability Score</CardTitle>
-                      <select
-                        className="w-full max-w-[200px] p-2 border rounded"
-                        value={selectedFieldForSustainability}
-                        onChange={(e) => setSelectedFieldForSustainability(e.target.value)}
-                      >
-                        <option value="all">All Crops</option>
-                        {fields.map(field => (
-                          <option key={field.id} value={field.id.toString()}>{field.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    {(() => {
-                      const filteredFields = fields.filter(field => 
-                        selectedFieldForSustainability === 'all' || 
-                        field.id.toString() === selectedFieldForSustainability
-                      );
-                      
-                      const hasActivity = filteredFields.some(f => 
-                        f.waterHistory.length > 0 || 
-                        f.fertilizerHistory.length > 0 || 
-                        f.harvestHistory.length > 0
-                      );
-                
-                      if (filteredFields.length === 0) {
-                        return (
-                          <div className="text-center text-gray-500">
-                            No crops added yet. Add crops to see sustainability metrics.
-                          </div>
-                        );
-                      }
-                
-                      if (!hasActivity) {
-                        return (
-                          <div className="text-center text-gray-500">
-                            No activity recorded yet. Add water usage, fertilizer, or harvest data to see sustainability metrics.
-                          </div>
-                        );
-                      }
-                
-                      return calculateSustainabilityMetrics(filteredFields);
-                    })()}
-                  </CardContent>
-                </Card>
-
-                <Card className="p-4 h-[300px]">
-                  <CardHeader className="p-2">
-                    <CardTitle>Weather Preview</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <WeatherPreview />
-                  </CardContent>
-                </Card>
-
-                <Card className="p-4 h-[300px] overflow-auto">
-                  <CardHeader className="p-2">
-                    <CardTitle>Tasks</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <TaskManager />
-                  </CardContent>
-                </Card>
-
-                <Card className="p-4 h-[300px] overflow-auto">
-                  <CardHeader className="p-2">
-                    <CardTitle>Issues</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <IssueManager />
-                  </CardContent>
-                </Card>
-
-                <Card className="p-4 h-[300px] overflow-auto">
-                  <CardHeader className="p-2">
-                    <CardTitle>Upcoming Schedule</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <CropPlan />
-                  </CardContent>
-                </Card>
+                <SustainabilityScoreCard />
+                <WeatherPreview />
+                <UpcomingCropPlan />
+                <FieldIssues />
+                <TaskManager />
               </div>
             </TabsContent>
 
             <TabsContent value="issues">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TaskManager />
-                <IssueManager />
-              </div>
+              <IssueTracker />
             </TabsContent>
 
             <TabsContent value="water">
               <div className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle>Water Usage Tracker</CardTitle>
-                      <select
-                        className="border rounded p-2"
-                        value={selectedFieldForWater}
-                        onChange={(e) => setSelectedFieldForWater(e.target.value)}
-                      >
-                        <option value="all">All Crops</option>
-                        {fields.map(field => (
-                          <option key={field.id} value={field.id.toString()}>{field.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <CardTitle>Water Usage Tracker</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="h-[300px]">
                       {fields.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={fields
-                            .filter(field => selectedFieldForWater === 'all' || field.id.toString() === selectedFieldForWater)
-                            .flatMap(field => 
-                              field.waterHistory.map(usage => ({
-                                field: field.name,
-                                amount: usage.amount,
-                                date: new Date(usage.date).toLocaleDateString()
-                              }))
-                            )}>
+                          <BarChart data={fields.flatMap(field => 
+                            field.waterHistory.map(usage => ({
+                              field: field.name,
+                              amount: usage.amount,
+                              date: new Date(usage.date).toLocaleDateString()
+                            }))
+                          )}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="date" />
                             <YAxis />
@@ -1690,17 +1688,17 @@ const CropPlan = () => {
                   onClick={() => setIsAddingField(true)}
                   className="mb-4"
                 >
-                  Add New Crop
+                  Add New Field
                 </Button>
 
                 <Dialog open={isAddingField} onOpenChange={setIsAddingField}>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Add New Crop</DialogTitle>
+                      <DialogTitle>Add New Field</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleAddField} className="space-y-4">
                       <div>
-                        <Label>Crop Name</Label>
+                        <Label>Field Name</Label>
                         <Input
                           value={newField.name}
                           onChange={(e) => setNewField({ ...newField, name: e.target.value })}
@@ -1725,7 +1723,7 @@ const CropPlan = () => {
                         />
                       </div>
                       <Button type="submit" className="w-full">
-                        Add Crop
+                        Add Field
                       </Button>
                     </form>
                   </DialogContent>
@@ -1734,11 +1732,11 @@ const CropPlan = () => {
                 <Dialog open={isEditingField} onOpenChange={setIsEditingField}>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Edit Crop</DialogTitle>
+                      <DialogTitle>Edit Field</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleEditField} className="space-y-4">
                       <div>
-                        <Label>Crop Name</Label>
+                        <Label>Field Name</Label>
                         <Input
                           value={newField.name}
                           onChange={(e) => setNewField({ ...newField, name: e.target.value })}
@@ -1846,7 +1844,7 @@ const CropPlan = () => {
                   ) : (
                     <div className="col-span-2 text-center p-8 border rounded-lg border-dashed">
                       <p className="text-gray-500">
-                        No crops added yet. Click "Add New Crop" to get started.
+                        No fields added yet. Click "Add New Field" to get started.
                       </p>
                     </div>
                   )}
@@ -1856,7 +1854,105 @@ const CropPlan = () => {
 
             <TabsContent value="reports">
               <div className="space-y-4">
-                <ReportsComponent />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Field Performance Report</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {fields.length > 0 ? (
+                      <div className="space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="p-4 bg-blue-50 rounded-lg">
+                            <Droplet className="h-6 w-6 text-blue-500 mb-2" />
+                            <p className="text-sm text-gray-500">Total Water Usage</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {fields
+                                .reduce(
+                                  (total, field) =>
+                                    total +
+                                    field.waterHistory.reduce(
+                                      (sum, record) => sum + record.amount,
+                                      0
+                                    ),
+                                  0
+                                )
+                                .toLocaleString()}{" "}
+                              gal
+                            </p>
+                          </div>
+                          <div className="p-4 bg-green-50 rounded-lg">
+                            <Leaf className="h-6 w-6 text-green-500 mb-2" />
+                            <p className="text-sm text-gray-500">Total Fertilizer Used</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              {fields
+                                .reduce(
+                                  (total, field) =>
+                                    total +
+                                    field.fertilizerHistory.reduce(
+                                      (sum, record) => sum + record.amount,
+                                      0
+                                    ),
+                                  0
+                                )
+                                .toLocaleString()}{" "}
+                              lbs
+                            </p>
+                          </div>
+                          <div className="p-4 bg-yellow-50 rounded-lg">
+                            <Sun className="h-6 w-6 text-yellow-500 mb-2" />
+                            <p className="text-sm text-gray-500">Total Harvest</p>
+                            <p className="text-2xl font-bold text-yellow-600">
+                              {fields
+                                .reduce(
+                                  (total, field) =>
+                                    total +
+                                    field.harvestHistory.reduce(
+                                      (sum, record) => sum + record.amount,
+                                      0
+                                    ),
+                                  0
+                                )
+                                .toLocaleString()}{" "}
+                              bu
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="h-[300px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart
+                              data={fields.flatMap((field) =>
+                                field.harvestHistory.map((harvest) => ({
+                                  field: field.name,
+                                  amount: harvest.amount,
+                                  date: new Date(harvest.date).toLocaleDateString(),
+                                }))
+                              )}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" />
+                              <YAxis />
+                              <Tooltip />
+                              <Legend />
+                              <Line
+                                type="monotone"
+                                dataKey="amount"
+                                stroke="#8884d8"
+                                name="Harvest Amount (bu)"
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center p-8">
+                        <p className="text-gray-500">
+                          No data available. Add fields and record activities to see reports.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 
@@ -1869,7 +1965,7 @@ const CropPlan = () => {
             </TabsContent>
 
             <TabsContent value="cropplan">
-              <CropPlan />
+              <CropPlanCalendar />
             </TabsContent>
           </Tabs>
         </div>
