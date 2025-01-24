@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Droplet, Leaf, Sun, LayoutDashboard, Info, AlertTriangle, Trash2, Menu, Edit3, Calendar } from 'lucide-react';
+import { Droplet, Leaf, LayoutDashboard, Info, AlertTriangle, Trash2, Menu, Edit3, Calendar } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
