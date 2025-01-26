@@ -142,21 +142,34 @@ const Walkthrough: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   useEffect(() => {
     const target = document.querySelector(step.target);
     if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Smooth scroll with offset for mobile
+      const yOffset = -100; 
+      const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
     }
   }, [currentStep, step.target]);
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none">
+    <div className="fixed inset-0 z-[100] pointer-events-none">
       <div className="absolute inset-0 bg-black/50" />
       {step && (
         <div
-          className="absolute pointer-events-auto bg-white rounded-lg shadow-xl p-4 max-w-md animate-bounce-gentle"
+          className="absolute pointer-events-auto bg-white rounded-lg shadow-xl p-4 mx-4 max-w-[calc(100%-2rem)] md:max-w-md animate-bounce-gentle"
           style={{
             ...getPositionForElement(step.target, step.placement),
           }}
         >
-          <h3 className="text-lg font-bold mb-2">{step.title}</h3>
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="text-lg font-bold">{step.title}</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onComplete}
+              className="hover:bg-gray-100"
+            >
+              Skip tutorial
+            </Button>
+          </div>
           <p className="text-gray-600 mb-4">{step.content}</p>
           <div className="flex justify-between items-center">
             <div className="space-x-1">
@@ -195,20 +208,55 @@ const Walkthrough: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   );
 };
 
-// Fix the placement type for the positions object
 const getPositionForElement = (selector: string, placement: 'top' | 'bottom' | 'left' | 'right' = 'bottom') => {
   const element = document.querySelector(selector);
   if (!element) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
 
   const rect = element.getBoundingClientRect();
+  const isMobile = window.innerWidth < 768;
+  const margin = isMobile ? 16 : 24;
+
+  // Ensure the tooltip is always visible on mobile by centering horizontally
+  if (isMobile) {
+    return {
+      top: `${rect.bottom + margin}px`,
+      left: '50%',
+      transform: 'translateX(-50%)',
+    };
+  }
+
   const positions: Record<'top' | 'bottom' | 'left' | 'right', { top: string; left: string; transform: string }> = {
-    top: { top: `${rect.top - 16}px`, left: `${rect.left + rect.width / 2}px`, transform: 'translate(-50%, -100%)' },
-    bottom: { top: `${rect.bottom + 16}px`, left: `${rect.left + rect.width / 2}px`, transform: 'translate(-50%, 0)' },
-    left: { top: `${rect.top + rect.height / 2}px`, left: `${rect.left - 16}px`, transform: 'translate(-100%, -50%)' },
-    right: { top: `${rect.top + rect.height / 2}px`, left: `${rect.right + 16}px`, transform: 'translate(0, -50%)' },
+    top: { 
+      top: `${rect.top - margin}px`, 
+      left: `${rect.left + rect.width / 2}px`, 
+      transform: 'translate(-50%, -100%)' 
+    },
+    bottom: { 
+      top: `${rect.bottom + margin}px`, 
+      left: `${rect.left + rect.width / 2}px`, 
+      transform: 'translate(-50%, 0)' 
+    },
+    left: { 
+      top: `${rect.top + rect.height / 2}px`, 
+      left: `${rect.left - margin}px`, 
+      transform: 'translate(-100%, -50%)' 
+    },
+    right: { 
+      top: `${rect.top + rect.height / 2}px`, 
+      left: `${rect.right + margin}px`, 
+      transform: 'translate(0, -50%)' 
+    },
   };
 
-  return positions[placement];
+  // Ensure the position is within viewport bounds
+  const position = positions[placement];
+  const maxWidth = window.innerWidth - 32; // Account for margins
+  const left = Math.min(Math.max(16, parseFloat(position.left)), maxWidth);
+  
+  return {
+    ...position,
+    left: `${left}px`,
+  };
 };
 
 const walkthroughStyles = `
