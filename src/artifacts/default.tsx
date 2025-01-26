@@ -482,8 +482,8 @@ const Navigation: React.FC<{ activeTab: string, setActiveTab: (tab: string) => v
     { value: "issues", label: "Field Issues" },
     { value: "reports", label: "Reports" },
     { value: "history", label: "History" },
-    { value: "instructions", label: "Instructions" },
-    { value: "cropplan", label: "Crop Plan" }
+    { value: "cropplan", label: "Crop Plan" },
+    { value: "instructions", label: "Instructions" }
   ];
 
   return (
@@ -922,6 +922,12 @@ const DefaultComponent: React.FC = () => {
   const handleWalkthroughComplete = () => {
     setShowWalkthrough(false);
     localStorage.setItem('walkthroughCompleted', 'true');
+  };
+
+  const handleStartWalkthrough = () => {
+    setShowWalkthrough(true);
+    localStorage.removeItem('walkthroughCompleted');
+    setActiveTab('overview'); // Switch to overview tab when starting walkthrough
   };
 
   const TaskManager = () => {
@@ -1556,36 +1562,115 @@ const DefaultComponent: React.FC = () => {
     );
   };
 
-  const Instructions = () => (
+  const Instructions = ({ onStartWalkthrough }: { onStartWalkthrough: () => void }) => (
     <Card>
       <CardHeader>
-        <CardTitle>Instructions</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Info className="h-5 w-5" />
+          Instructions & Help
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-6">
+          <Button 
+            onClick={onStartWalkthrough}
+            variant="outline" 
+            className="w-full mb-6"
+          >
+            Start Interactive Walkthrough
+          </Button>
+
           <div>
-            <h2 className="font-bold">Overview</h2>
-            <p>In the Overview tab, you can quickly record water usage, fertilizer applications, and harvests. You can also view the sustainability score and a 10-day weather preview.</p>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <LayoutDashboard className="h-4 w-4" />
+              Overview
+            </h2>
+            <div className="mt-2 space-y-2 text-gray-600">
+              <p>The Overview tab is your main dashboard where you can:</p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>Use Quick Actions to record water usage, fertilizer applications, and harvests</li>
+                <li>View your farm's sustainability score and detailed metrics</li>
+                <li>Check the 10-day weather forecast</li>
+                <li>See upcoming planned activities</li>
+                <li>Monitor active field issues</li>
+                <li>Manage daily tasks</li>
+              </ul>
+            </div>
           </div>
+
           <div>
-            <h2 className="font-bold">Water Management</h2>
-            <p>In the Water Management tab, you can view a detailed report of water usage for each field. Ensure you have added fields in the "Crops" tab before recording water usage in the "Overview" tab.</p>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Droplet className="h-4 w-4" />
+              Water Management
+            </h2>
+            <div className="mt-2 space-y-2 text-gray-600">
+              <p>Track and analyze your water usage:</p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>View historical water usage data in graph form</li>
+                <li>Monitor water efficiency scores</li>
+                <li>Track irrigation patterns across different fields</li>
+                <li>Record new water applications through Quick Actions</li>
+              </ul>
+            </div>
           </div>
+
           <div>
-            <h2 className="font-bold">Crops</h2>
-            <p>In the Crops tab, you can manage fields, record fertilizer applications, and harvests. Add new fields here before tracking water usage or harvests in the "Overview" tab.</p>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Leaf className="h-4 w-4" />
+              Crops & Fields
+            </h2>
+            <div className="mt-2 space-y-2 text-gray-600">
+              <p>Manage your fields and crops:</p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>Add new fields with detailed information</li>
+                <li>Track crop rotations and field history</li>
+                <li>Monitor harvest records</li>
+                <li>View fertilizer applications</li>
+                <li>Edit or delete existing fields</li>
+              </ul>
+            </div>
           </div>
+
           <div>
-            <h2 className="font-bold">Field Issues</h2>
-            <p>In the Field Issues tab, you can report and track issues such as pests, diseases, and other problems affecting your fields. You can also resolve reported issues here.</p>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Field Issues
+            </h2>
+            <div className="mt-2 space-y-2 text-gray-600">
+              <p>Track and manage field problems:</p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>Report new issues with severity levels</li>
+                <li>Track the status of ongoing problems</li>
+                <li>Mark issues as resolved</li>
+                <li>Keep a history of past problems</li>
+              </ul>
+            </div>
           </div>
+
           <div>
-            <h2 className="font-bold">Reports</h2>
-            <p>In the Reports tab, you can view detailed reports on field performance, including total water usage, fertilizer used, and harvest amounts. Ensure you have recorded activities in the "Overview" tab to see comprehensive reports.</p>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <RotateCw className="h-4 w-4" />
+              Crop Planning
+            </h2>
+            <div className="mt-2 space-y-2 text-gray-600">
+              <p>Plan and schedule your farming activities:</p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>Create detailed crop plans with the calendar</li>
+                <li>Schedule plantings, harvests, and other activities</li>
+                <li>Export and import crop plans</li>
+                <li>View upcoming events for the next two weeks</li>
+              </ul>
+            </div>
           </div>
-          <div>
-            <h2 className="font-bold">History</h2>
-            <p>In the History tab, you can view and edit the history of water usage, fertilizer applications, and harvests for each field. Click the edit button to pull up the edit/add form popup.</p>
+
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h2 className="text-lg font-bold text-blue-700">Tips</h2>
+            <ul className="mt-2 space-y-2 text-blue-600">
+              <li>• Use the walkthrough feature above to learn the basics</li>
+              <li>• Regular data entry helps maintain accurate sustainability scores</li>
+              <li>• Check weather forecasts before scheduling water applications</li>
+              <li>• Keep crop rotation records updated for better soil health tracking</li>
+            </ul>
           </div>
         </div>
       </CardContent>
@@ -2630,7 +2715,7 @@ const DefaultComponent: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="instructions">
-              <Instructions />
+              <Instructions onStartWalkthrough={handleStartWalkthrough} />
             </TabsContent>
 
             <TabsContent value="history">
