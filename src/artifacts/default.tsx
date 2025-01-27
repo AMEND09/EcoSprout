@@ -16,8 +16,8 @@ interface WaterUsage {
   efficiency?: number;  // Add efficiency score for each watering
 }
 
-// Update Field interface to include more data
-interface Field {
+// Update Farm interface to include more data
+interface Farm {
   id: number;
   name: string;
   size: string;
@@ -80,7 +80,7 @@ interface CropPlanEvent {
   title: string;
   start: Date;
   end: Date;
-  fieldId: number;
+  farmId: number;
   type: 'planting' | 'fertilizing' | 'harvesting' | 'other';
   notes?: string;
 }
@@ -100,43 +100,82 @@ interface WalkthroughStep {
   title: string;
   content: string;
   placement?: 'top' | 'bottom' | 'left' | 'right';
+  tabId?: string;
+  onEnter?: () => void;
 }
 
-const WALKTHROUGH_STEPS: WalkthroughStep[] = [
-  {
-    target: '[data-walkthrough="overview-tab"]',
-    title: "Welcome to Farm Management!",
-    content: "This is your main dashboard where you can monitor all aspects of your farm.",
-    placement: 'bottom'
-  },
-  {
-    target: '[data-walkthrough="add-field"]',
-    title: "Add Your Fields",
-    content: "Start by adding your fields. Click here to add information about your farm fields.",
-    placement: 'right'
-  },
-  {
-    target: '[data-walkthrough="quick-actions"]',
-    title: "Quick Actions",
-    content: "Use these buttons to quickly record water usage, fertilizer applications, and harvests.",
-    placement: 'left'
-  },
-  {
-    target: '[data-walkthrough="sustainability"]',
-    title: "Sustainability Score",
-    content: "Monitor your farm's sustainability metrics here. The score updates automatically based on your farming practices.",
-    placement: 'left'
-  },
-  {
-    target: '[data-walkthrough="crop-plan"]',
-    title: "Plan Your Crops",
-    content: "Use the crop planning calendar to schedule plantings, harvests, and other field activities.",
-    placement: 'top'
-  }
-];
-
-const Walkthrough: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+const Walkthrough: React.FC<{ onComplete: () => void, setActiveTab: (tab: string) => void }> = ({ onComplete, setActiveTab }) => {
   const [currentStep, setCurrentStep] = useState(0);
+
+  const WALKTHROUGH_STEPS: WalkthroughStep[] = [
+    {
+      target: '[data-walkthrough="overview-tab"]',
+      title: "Welcome to Farm Management!",
+      content: "This is your main dashboard where you can monitor all aspects of your farm. Let's walk through all the features.",
+      placement: 'bottom',
+      tabId: 'overview'
+    },
+    {
+      target: '[data-walkthrough="quick-actions"]',
+      title: "Quick Actions",
+      content: "These buttons let you quickly record essential farm activities like water usage, fertilizer applications, and harvests.",
+      placement: 'left'
+    },
+    {
+      target: '[data-walkthrough="sustainability"]',
+      title: "Sustainability Score",
+      content: "Monitor your farm's sustainability metrics here. The score is calculated based on water efficiency, organic practices, harvest efficiency, soil quality, and crop rotation.",
+      placement: 'left'
+    },
+    {
+      target: '[data-walkthrough="farms-tab"]',
+      title: "Farm Management",
+      content: "Click here to manage your farms, add new ones, and track their history.",
+      placement: 'bottom',
+      tabId: 'farms'
+    },
+    {
+      target: '[data-walkthrough="add-farm"]',
+      title: "Adding Farms",
+      content: "Click here to add new farms. You can specify size, crop type, and track rotation history.",
+      placement: 'right'
+    },
+    {
+      target: '[data-walkthrough="issues-tab"]',
+      title: "Farm Issues",
+      content: "Track and manage problems in your farms such as pests, diseases, or irrigation issues.",
+      placement: 'bottom',
+      tabId: 'issues'
+    },
+    {
+      target: '[data-walkthrough="issue-severity"]',
+      title: "Issue Management",
+      content: "Report issues with different severity levels and track their status. High-severity issues are highlighted for immediate attention.",
+      placement: 'left'
+    },
+    {
+      target: '[data-walkthrough="water-tab"]',
+      title: "Water Management",
+      content: "Monitor water usage trends and efficiency through detailed charts and analytics.",
+      placement: 'bottom',
+      tabId: 'water'
+    },
+    {
+      target: '[data-walkthrough="crop-plan"]',
+      title: "Crop Planning",
+      content: "Use the calendar to schedule plantings, harvests, and other farm activities. You can also import and export your crop plans.",
+      placement: 'top',
+      tabId: 'cropplan'
+    },
+    {
+      target: '[data-walkthrough="reports-tab"]',
+      title: "Reports & Analytics",
+      content: "View detailed reports on farm performance, including harvest yields, water usage, and sustainability metrics.",
+      placement: 'bottom',
+      tabId: 'reports'
+    }
+  ];
+
   const step = WALKTHROUGH_STEPS[currentStep];
 
   useEffect(() => {
@@ -147,7 +186,13 @@ const Walkthrough: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
       const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
     }
-  }, [currentStep, step.target]);
+    // Execute onEnter callback if present
+    step.onEnter?.();
+    // Change tab if specified
+    if (step.tabId) {
+      setActiveTab(step.tabId);
+    }
+  }, [currentStep, step, setActiveTab]);
 
   return (
     <div className="fixed inset-0 z-[100] pointer-events-none">
@@ -307,35 +352,35 @@ const calculateWaterEfficiency = (
 };
 
 // Add new calculation functions
-const calculateSoilQualityScore = (field: Field): number => {
+const calculateSoilQualityScore = (farm: Farm): number => {
   let score = 70; // Base score
 
   // Organic matter content
-  if (field.organicMatter) {
-    score += field.organicMatter * 5; // +5 points per % of organic matter
+  if (farm.organicMatter) {
+    score += farm.organicMatter * 5; // +5 points per % of organic matter
   }
 
   // pH balance (ideal range 6.0-7.0)
-  if (field.soilPH) {
+  if (farm.soilPH) {
     const idealPH = 6.5;
-    const phDifference = Math.abs(field.soilPH - idealPH);
+    const phDifference = Math.abs(farm.soilPH - idealPH);
     score -= phDifference * 5; // -5 points per pH unit difference from ideal
   }
 
   // Crop rotation
-  if (field.rotationHistory && field.rotationHistory.length) {
-    score += Math.min(15, field.rotationHistory.length * 5); // Up to +15 for rotation
+  if (farm.rotationHistory && farm.rotationHistory.length) {
+    score += Math.min(15, farm.rotationHistory.length * 5); // Up to +15 for rotation
   }
 
   return Math.max(0, Math.min(100, score));
 };
 
-const calculateOrganicScore = (field: Field): number => {
+const calculateOrganicScore = (farm: Farm): number => {
   let score = 70; // Base score
   
   // Analyze fertilizer types and amounts
-  const totalFertilizerAmount = field.fertilizerHistory.reduce((sum, f) => sum + f.amount, 0);
-  const organicFertilizers = field.fertilizerHistory.filter(f => 
+  const totalFertilizerAmount = farm.fertilizerHistory.reduce((sum, f) => sum + f.amount, 0);
+  const organicFertilizers = farm.fertilizerHistory.filter(f => 
     f.type?.toLowerCase().includes('organic') || 
     f.type?.toLowerCase().includes('manure') ||
     f.type?.toLowerCase().includes('compost')
@@ -360,8 +405,8 @@ const calculateOrganicScore = (field: Field): number => {
   }
   
   // Consider crop rotation if available
-  if (field.rotationHistory && field.rotationHistory.length) {
-    score += Math.min(10, field.rotationHistory.length * 2);
+  if (farm.rotationHistory && farm.rotationHistory.length) {
+    score += Math.min(10, farm.rotationHistory.length * 2);
   }
 
   // Add bonus for consistent organic practices
@@ -373,19 +418,19 @@ const calculateOrganicScore = (field: Field): number => {
   return Math.min(100, Math.max(0, score));
 };
 
-const calculateHarvestEfficiency = (field: Field, weatherData: WeatherData[]): number => {
-  if (!field.harvestHistory.length) return 0;
+const calculateHarvestEfficiency = (farm: Farm, weatherData: WeatherData[]): number => {
+  if (!farm.harvestHistory.length) return 0;
 
   let score = 100;
   
   // Remove unused harvestsPerYear calculation or use it in scoring
   // Optionally, you could use it like this:
-  // const harvestsPerYear = field.harvestHistory.length / 
-  //   (new Set(field.harvestHistory.map(h => new Date(h.date).getFullYear())).size || 1);
+  // const harvestsPerYear = farm.harvestHistory.length / 
+  //   (new Set(farm.harvestHistory.map(h => new Date(h.date).getFullYear())).size || 1);
   // score += harvestsPerYear * 5; // Bonus for multiple harvests per year
   
   // Analyze yield consistency
-  const yields = field.harvestHistory.map(h => h.amount);
+  const yields = farm.harvestHistory.map(h => h.amount);
   const avgYield = yields.reduce((a, b) => a + b, 0) / yields.length;
   const yieldVariation = Math.sqrt(
     yields.reduce((acc, y) => acc + Math.pow(y - avgYield, 2), 0) / yields.length
@@ -395,7 +440,7 @@ const calculateHarvestEfficiency = (field: Field, weatherData: WeatherData[]): n
   score -= yieldVariation * 20;
 
   // Consider weather impact
-  field.harvestHistory.forEach(harvest => {
+  farm.harvestHistory.forEach(harvest => {
     const harvestDate = new Date(harvest.date);
     const weatherOnDay = weatherData.find(w => 
       new Date(w.date).toDateString() === harvestDate.toDateString()
@@ -415,20 +460,20 @@ interface MetricsAccumulator {
 
 // Update the calculateSustainabilityMetrics function
 const calculateSustainabilityMetrics = (
-  fields: Field[],
+  farms: Farm[],
   weatherData: WeatherData[]
 ): SustainabilityMetrics | null => {
-  if (fields.length === 0 || weatherData.length === 0) return null;
+  if (farms.length === 0 || weatherData.length === 0) return null;
 
-  const fieldMetrics = fields.map(field => ({
-    waterEfficiency: calculateWaterEfficiency(field.waterHistory, weatherData),
-    organicScore: calculateOrganicScore(field),
-    harvestEfficiency: calculateHarvestEfficiency(field, weatherData),
-    soilQualityScore: calculateSoilQualityScore(field),
-    rotationScore: calculateRotationScore(field),
+  const farmMetrics = farms.map(farm => ({
+    waterEfficiency: calculateWaterEfficiency(farm.waterHistory, weatherData),
+    organicScore: calculateOrganicScore(farm),
+    harvestEfficiency: calculateHarvestEfficiency(farm, weatherData),
+    soilQualityScore: calculateSoilQualityScore(farm),
+    rotationScore: calculateRotationScore(farm),
   }));
 
-  const avgMetrics = fieldMetrics.reduce((acc: MetricsAccumulator, metrics) => {
+  const avgMetrics = farmMetrics.reduce((acc: MetricsAccumulator, metrics) => {
     Object.keys(metrics).forEach(key => {
       acc[key] = (acc[key] || 0) + metrics[key as keyof typeof metrics];
     });
@@ -436,7 +481,7 @@ const calculateSustainabilityMetrics = (
   }, {});
 
   Object.keys(avgMetrics).forEach(key => {
-    avgMetrics[key] /= fields.length;
+    avgMetrics[key] /= farms.length;
   });
 
   const weights = {
@@ -462,13 +507,13 @@ const calculateSustainabilityMetrics = (
 };
 
 // Add calculateRotationScore function
-const calculateRotationScore = (field: Field): number => {
-  if (!field.rotationHistory?.length) return 0;
+const calculateRotationScore = (farm: Farm): number => {
+  if (!farm.rotationHistory?.length) return 0;
   
-  let score = Math.min(100, field.rotationHistory.length * 20); // 20 points per rotation, max 100
+  let score = Math.min(100, farm.rotationHistory.length * 20); // 20 points per rotation, max 100
   
   // Check for variety in crops
-  const uniqueCrops = new Set(field.rotationHistory.map(r => r.crop)).size;
+  const uniqueCrops = new Set(farm.rotationHistory.map(r => r.crop)).size;
   score += Math.min(20, uniqueCrops * 5); // 5 points per unique crop, max 20 bonus
   
   return Math.min(100, score);
@@ -478,8 +523,8 @@ const Navigation: React.FC<{ activeTab: string, setActiveTab: (tab: string) => v
   const menuItems = [
     { value: "overview", label: "Overview" },
     { value: "water", label: "Water Management" },
-    { value: "crops", label: "Crops" },
-    { value: "issues", label: "Field Issues" },
+    { value: "farms", label: "Farms" },
+    { value: "issues", label: "Farm Issues" },
     { value: "reports", label: "Reports" },
     { value: "history", label: "History" },
     { value: "cropplan", label: "Crop Plan" },
@@ -521,22 +566,22 @@ const getWeatherInfo = (code: number) => {
 };
 
 const DefaultComponent: React.FC = () => {
-  const [fields, setFields] = useState<Field[]>(() => {
-    const savedFields = localStorage.getItem('fields');
-    return savedFields ? JSON.parse(savedFields) : [];
+  const [farms, setFarms] = useState<Farm[]>(() => {
+    const savedFarms = localStorage.getItem('farms');
+    return savedFarms ? JSON.parse(savedFarms) : [];
   });
 
   const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
-  const [isAddingField, setIsAddingField] = useState(false);
-  const [isEditingField, setIsEditingField] = useState(false);
-  const [newField, setNewField] = useState({ 
+  const [isAddingFarm, setIsAddingFarm] = useState(false);
+  const [isEditingFarm, setIsEditingFarm] = useState(false);
+  const [newFarm, setNewFarm] = useState({ 
     name: '', 
     size: '', 
     crop: '',
     rotationHistory: [] as { crop: string; startDate: string; endDate: string }[]
   });
-  const [editingField, setEditingField] = useState<Field | null>(null);
-  const [newWaterUsage, setNewWaterUsage] = useState({ fieldId: '', amount: '', date: '' });
+  const [editingFarm, setEditingFarm] = useState<Farm | null>(null);
+  const [newWaterUsage, setNewWaterUsage] = useState({ farmId: '', amount: '', date: '' });
   const [isAddingWaterUsage, setIsAddingWaterUsage] = useState(false);
   const [isEditingWaterUsage, setIsEditingWaterUsage] = useState(false);
   const [editingWaterUsage, setEditingWaterUsage] = useState<WaterUsage | null>(null);
@@ -546,8 +591,8 @@ const DefaultComponent: React.FC = () => {
   const [isAddingHarvest, setIsAddingHarvest] = useState(false);
   const [isEditingHarvest, setIsEditingHarvest] = useState(false);
   const [editingHarvest, setEditingHarvest] = useState<any | null>(null);
-  const [newFertilizer, setNewFertilizer] = useState({ fieldId: '', type: '', amount: '', date: '' });
-  const [newHarvest, setNewHarvest] = useState({ fieldId: '', amount: '', date: '' });
+  const [newFertilizer, setNewFertilizer] = useState({ farmId: '', type: '', amount: '', date: '' });
+  const [newHarvest, setNewHarvest] = useState({ farmId: '', amount: '', date: '' });
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
@@ -566,7 +611,7 @@ const DefaultComponent: React.FC = () => {
 
   const [isAddingRotation, setIsAddingRotation] = useState(false);
   const [newRotation, setNewRotation] = useState({
-    fieldId: '',
+    farmId: '',
     crop: '',
     startDate: '',
     endDate: ''
@@ -574,16 +619,16 @@ const DefaultComponent: React.FC = () => {
 
   const [cropFilter, setCropFilter] = useState<string>("all");
 
-  const getFilteredFields = () => {
-    if (cropFilter === "all") return fields;
-    return fields.filter(field => field.crop === cropFilter);
+  const getFilteredFarms = () => {
+    if (cropFilter === "all") return farms;
+    return farms.filter(farm => farm.crop === cropFilter);
   };
 
   const CropFilter = () => {
     const uniqueCrops = useMemo(() => {
-      const crops = new Set(fields.map(field => field.crop));
+      const crops = new Set(farms.map(farm => farm.crop));
       return ["all", ...Array.from(crops)];
-    }, [fields]);
+    }, [farms]);
 
     return (
       <div className="flex items-center gap-2">
@@ -604,8 +649,8 @@ const DefaultComponent: React.FC = () => {
   };
 
   useEffect(() => {
-    localStorage.setItem('fields', JSON.stringify(fields));
-  }, [fields]);
+    localStorage.setItem('farms', JSON.stringify(farms));
+  }, [farms]);
 
   useEffect(() => {
     fetchUserLocation();
@@ -657,19 +702,19 @@ const DefaultComponent: React.FC = () => {
     }
   };
 
-  const handleAddField = () => {
-    setFields([...fields, {
-      id: fields.length + 1,
-      name: newField.name,
-      size: newField.size,
-      crop: newField.crop,
-      rotationHistory: newField.rotationHistory,
+  const handleAddFarm = () => {
+    setFarms([...farms, {
+      id: farms.length + 1,
+      name: newFarm.name,
+      size: newFarm.size,
+      crop: newFarm.crop,
+      rotationHistory: newFarm.rotationHistory,
       waterHistory: [],
       fertilizerHistory: [],
       harvestHistory: []
     }]);
-    setIsAddingField(false);
-    setNewField({ 
+    setIsAddingFarm(false);
+    setNewFarm({ 
       name: '', 
       size: '', 
       crop: '', 
@@ -677,16 +722,16 @@ const DefaultComponent: React.FC = () => {
     });
   };
 
-  // Update handleEditField to include rotationHistory
-  const handleEditField = () => {
-    if (editingField) {
-      const updatedFields = fields.map(field => 
-        field.id === editingField.id ? { ...editingField, ...newField } : field
+  // Update handleEditFarm to include rotationHistory
+  const handleEditFarm = () => {
+    if (editingFarm) {
+      const updatedFarms = farms.map(farm => 
+        farm.id === editingFarm.id ? { ...editingFarm, ...newFarm } : farm
       );
-      setFields(updatedFields);
-      setIsEditingField(false);
-      setEditingField(null);
-      setNewField({ 
+      setFarms(updatedFarms);
+      setIsEditingFarm(false);
+      setEditingFarm(null);
+      setNewFarm({ 
         name: '', 
         size: '', 
         crop: '', 
@@ -695,125 +740,125 @@ const DefaultComponent: React.FC = () => {
     }
   };
 
-  const handleDeleteField = (id: number) => {
-    setConfirmDelete({ id, type: 'field' });
+  const handleDeleteFarm = (id: number) => {
+    setConfirmDelete({ id, type: 'farm' });
   };
 
   const handleAddWaterUsage = (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedFields = fields.map(field => {
-      if (field.id === parseInt(newWaterUsage.fieldId)) {
+    const updatedFarms = farms.map(farm => {
+      if (farm.id === parseInt(newWaterUsage.farmId)) {
         return {
-          ...field,
-          waterHistory: [...field.waterHistory, {
+          ...farm,
+          waterHistory: [...farm.waterHistory, {
             amount: parseFloat(newWaterUsage.amount),
             date: newWaterUsage.date
           }]
         };
       }
-      return field;
+      return farm;
     });
-    setFields(updatedFields);
-    setNewWaterUsage({ fieldId: '', amount: '', date: '' });
+    setFarms(updatedFarms);
+    setNewWaterUsage({ farmId: '', amount: '', date: '' });
   };
 
   const handleEditWaterUsage = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingWaterUsage) {
-      const updatedFields = fields.map(field => {
-        if (field.id === parseInt(newWaterUsage.fieldId)) {
+      const updatedFarms = farms.map(farm => {
+        if (farm.id === parseInt(newWaterUsage.farmId)) {
           return {
-            ...field,
-            waterHistory: field.waterHistory.map(usage =>
+            ...farm,
+            waterHistory: farm.waterHistory.map(usage =>
               usage.date === editingWaterUsage.date ? { ...usage, amount: parseFloat(newWaterUsage.amount), date: newWaterUsage.date } : usage
             )
           };
         }
-        return field;
+        return farm;
       });
-      setFields(updatedFields);
+      setFarms(updatedFarms);
       setIsEditingWaterUsage(false);
       setEditingWaterUsage(null);
-      setNewWaterUsage({ fieldId: '', amount: '', date: '' });
+      setNewWaterUsage({ farmId: '', amount: '', date: '' });
     }
   };
 
   const handleAddFertilizer = (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedFields = fields.map(field => {
-      if (field.id === parseInt(newFertilizer.fieldId)) {
+    const updatedFarms = farms.map(farm => {
+      if (farm.id === parseInt(newFertilizer.farmId)) {
         return {
-          ...field,
-          fertilizerHistory: [...field.fertilizerHistory, {
+          ...farm,
+          fertilizerHistory: [...farm.fertilizerHistory, {
             type: newFertilizer.type,
             amount: parseFloat(newFertilizer.amount),
             date: newFertilizer.date
           }]
         };
       }
-      return field;
+      return farm;
     });
-    setFields(updatedFields);
-    setNewFertilizer({ fieldId: '', type: '', amount: '', date: '' });
+    setFarms(updatedFarms);
+    setNewFertilizer({ farmId: '', type: '', amount: '', date: '' });
   };
 
   const handleEditFertilizer = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingFertilizer) {
-      const updatedFields = fields.map(field => {
-        if (field.id === parseInt(newFertilizer.fieldId)) {
+      const updatedFarms = farms.map(farm => {
+        if (farm.id === parseInt(newFertilizer.farmId)) {
           return {
-            ...field,
-            fertilizerHistory: field.fertilizerHistory.map(fertilizer =>
+            ...farm,
+            fertilizerHistory: farm.fertilizerHistory.map(fertilizer =>
               fertilizer.date === editingFertilizer.date ? { ...fertilizer, type: newFertilizer.type, amount: parseFloat(newFertilizer.amount), date: newFertilizer.date } : fertilizer
             )
           };
         }
-        return field;
+        return farm;
       });
-      setFields(updatedFields);
+      setFarms(updatedFarms);
       setIsEditingFertilizer(false);
       setEditingFertilizer(null);
-      setNewFertilizer({ fieldId: '', type: '', amount: '', date: '' });
+      setNewFertilizer({ farmId: '', type: '', amount: '', date: '' });
     }
   };
 
   const handleAddHarvest = (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedFields = fields.map(field => {
-      if (field.id === parseInt(newHarvest.fieldId)) {
+    const updatedFarms = farms.map(farm => {
+      if (farm.id === parseInt(newHarvest.farmId)) {
         return {
-          ...field,
-          harvestHistory: [...field.harvestHistory, {
+          ...farm,
+          harvestHistory: [...farm.harvestHistory, {
             amount: parseFloat(newHarvest.amount),
             date: newHarvest.date
           }]
         };
       }
-      return field;
+      return farm;
     });
-    setFields(updatedFields);
-    setNewHarvest({ fieldId: '', amount: '', date: '' });
+    setFarms(updatedFarms);
+    setNewHarvest({ farmId: '', amount: '', date: '' });
   };
 
   const handleEditHarvest = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingHarvest) {
-      const updatedFields = fields.map(field => {
-        if (field.id === parseInt(newHarvest.fieldId)) {
+      const updatedFarms = farms.map(farm => {
+        if (farm.id === parseInt(newHarvest.farmId)) {
           return {
-            ...field,
-            harvestHistory: field.harvestHistory.map(harvest =>
+            ...farm,
+            harvestHistory: farm.harvestHistory.map(harvest =>
               harvest.date === editingHarvest.date ? { ...harvest, amount: parseFloat(newHarvest.amount), date: newHarvest.date } : harvest
             )
           };
         }
-        return field;
+        return farm;
       });
-      setFields(updatedFields);
+      setFarms(updatedFarms);
       setIsEditingHarvest(false);
       setEditingHarvest(null);
-      setNewHarvest({ fieldId: '', amount: '', date: '' });
+      setNewHarvest({ farmId: '', amount: '', date: '' });
     }
   };
 
@@ -827,12 +872,12 @@ const DefaultComponent: React.FC = () => {
 
   const handleAddRotation = (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedFields = fields.map(field => {
-      if (field.id === parseInt(newRotation.fieldId)) {
+    const updatedFarms = farms.map(farm => {
+      if (farm.id === parseInt(newRotation.farmId)) {
         return {
-          ...field,
+          ...farm,
           rotationHistory: [
-            ...(field.rotationHistory || []),
+            ...(farm.rotationHistory || []),
             {
               crop: newRotation.crop,
               startDate: newRotation.startDate,
@@ -841,69 +886,69 @@ const DefaultComponent: React.FC = () => {
           ]
         };
       }
-      return field;
+      return farm;
     });
-    setFields(updatedFields);
+    setFarms(updatedFarms);
     setIsAddingRotation(false);
-    setNewRotation({ fieldId: '', crop: '', startDate: '', endDate: '' });
+    setNewRotation({ farmId: '', crop: '', startDate: '', endDate: '' });
   };
 
   const confirmDeleteAction = () => {
     if (confirmDelete) {
       switch (confirmDelete.type) {
-        case 'field':
-          setFields(fields.filter(field => field.id !== confirmDelete.id));
+        case 'farm':
+          setFarms(farms.filter(farm => farm.id !== confirmDelete.id));
           break;
         case 'waterUsage':
-          setFields(fields.map(field => {
-            if (field.id === confirmDelete.id) {
+          setFarms(farms.map(farm => {
+            if (farm.id === confirmDelete.id) {
               return {
-                ...field,
-                waterHistory: field.waterHistory.filter(usage => 
+                ...farm,
+                waterHistory: farm.waterHistory.filter(usage => 
                   new Date(usage.date).toISOString() !== new Date(confirmDelete.date!).toISOString()
                 )
               };
             }
-            return field;
+            return farm;
           }));
           break;
         case 'fertilizer':
-          setFields(fields.map(field => {
-            if (field.id === confirmDelete.id) {
+          setFarms(farms.map(farm => {
+            if (farm.id === confirmDelete.id) {
               return {
-                ...field,
-                fertilizerHistory: field.fertilizerHistory.filter(fertilizer => 
+                ...farm,
+                fertilizerHistory: farm.fertilizerHistory.filter(fertilizer => 
                   new Date(fertilizer.date).toISOString() !== new Date(confirmDelete.date!).toISOString()
                 )
               };
             }
-            return field;
+            return farm;
           }));
           break;
         case 'harvest':
-          setFields(fields.map(field => {
-            if (field.id === confirmDelete.id) {
+          setFarms(farms.map(farm => {
+            if (farm.id === confirmDelete.id) {
               return {
-                ...field,
-                harvestHistory: field.harvestHistory.filter(harvest => 
+                ...farm,
+                harvestHistory: farm.harvestHistory.filter(harvest => 
                   new Date(harvest.date).toISOString() !== new Date(confirmDelete.date!).toISOString()
                 )
               };
             }
-            return field;
+            return farm;
           }));
           break;
         case 'rotation':
-          setFields(fields.map(field => {
-            if (field.id === confirmDelete.id) {
+          setFarms(farms.map(farm => {
+            if (farm.id === confirmDelete.id) {
               return {
-                ...field,
-                rotationHistory: (field.rotationHistory || []).filter(rotation => 
+                ...farm,
+                rotationHistory: (farm.rotationHistory || []).filter(rotation => 
                   new Date(rotation.startDate).toISOString() !== new Date(confirmDelete.date!).toISOString()
                 )
               };
             }
-            return field;
+            return farm;
           }));
           break;
         case 'task':
@@ -941,7 +986,7 @@ const DefaultComponent: React.FC = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Field Tasks</CardTitle>
+          <CardTitle>Farm Tasks</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -1012,7 +1057,7 @@ const DefaultComponent: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bug className="h-5 w-5" />
-            Field Issues
+            Farm Issues
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1025,6 +1070,7 @@ const DefaultComponent: React.FC = () => {
                 onChange={(e) => setIssueInput(prev => ({ ...prev, type: e.target.value }))}
               />
               <select 
+                data-walkthrough="issue-severity"
                 name="severity"
                 className="border rounded p-2"
                 value={issueInput.severity}
@@ -1074,7 +1120,7 @@ const DefaultComponent: React.FC = () => {
     );
   };
 
-  const sustainabilityMetrics = useMemo(() => calculateSustainabilityMetrics(getFilteredFields(), weatherData), [fields, weatherData, cropFilter]);
+  const sustainabilityMetrics = useMemo(() => calculateSustainabilityMetrics(getFilteredFarms(), weatherData), [farms, weatherData, cropFilter]);
 
   // Update the SustainabilityScoreCard component to show only the metrics we have
   const SustainabilityScoreCard = () => (
@@ -1182,76 +1228,76 @@ const DefaultComponent: React.FC = () => {
   // Update the HistoryPage component to include rotations
   const HistoryPage = () => {
     const allHistory = useMemo(() => {
-      const history: AnyHistoryEntry[] = fields.flatMap(field => [
-        ...field.waterHistory.map(usage => ({
+      const history: AnyHistoryEntry[] = farms.flatMap(farm => [
+        ...farm.waterHistory.map(usage => ({
           type: 'Water Usage' as const,
           date: new Date(usage.date),
-          field: field.name,
+          farm: farm.name,
           amount: `${usage.amount} gallons`,
           icon: <Droplet className="h-4 w-4 text-blue-500" />,
           color: 'blue',
-          fieldId: field.id,
+          farmId: farm.id,
           usage
         })),
-        ...field.fertilizerHistory.map(fertilizer => ({
+        ...farm.fertilizerHistory.map(fertilizer => ({
           type: 'Fertilizer Usage' as const,
           date: new Date(fertilizer.date),
-          field: field.name,
+          farm: farm.name,
           amount: `${fertilizer.amount} lbs`,
           icon: <Leaf className="h-4 w-4 text-green-500" />,
           color: 'green',
-          fieldId: field.id,
+          farmId: farm.id,
           fertilizer
         })),
-        ...field.harvestHistory.map(harvest => ({
+        ...farm.harvestHistory.map(harvest => ({
           type: 'Harvest' as const,
           date: new Date(harvest.date),
-          field: field.name,
+          farm: farm.name,
           amount: `${harvest.amount} bushels`,
           icon: <LayoutDashboard className="h-4 w-4 text-purple-500" />,
           color: 'purple',
-          fieldId: field.id,
+          farmId: farm.id,
           harvest
         })),
-        ...(field.rotationHistory || []).map(rotation => ({
+        ...(farm.rotationHistory || []).map(rotation => ({
           type: 'Crop Rotation' as const,
           date: new Date(rotation.startDate),
           endDate: new Date(rotation.endDate),
-          field: field.name,
+          farm: farm.name,
           crop: rotation.crop,
           icon: <RotateCw className="h-4 w-4 text-orange-500" />,
           color: 'orange',
-          fieldId: field.id,
+          farmId: farm.id,
           rotation
         }))
       ]);
 
       return history.sort((a, b) => b.date.getTime() - a.date.getTime());
-    }, [fields]);
+    }, [farms]);
 
     const handleEditHistory = (entry: any) => {
       switch (entry.type) {
         case 'Water Usage':
           setEditingWaterUsage(entry.usage);
-          setNewWaterUsage({ fieldId: entry.fieldId.toString(), amount: entry.usage.amount.toString(), date: entry.usage.date });
+          setNewWaterUsage({ farmId: entry.farmId.toString(), amount: entry.usage.amount.toString(), date: entry.usage.date });
           setIsEditingWaterUsage(true);
           setIsAddingWaterUsage(true);
           break;
         case 'Fertilizer Usage':
           setEditingFertilizer(entry.fertilizer);
-          setNewFertilizer({ fieldId: entry.fieldId.toString(), type: entry.fertilizer.type, amount: entry.fertilizer.amount.toString(), date: entry.fertilizer.date });
+          setNewFertilizer({ farmId: entry.farmId.toString(), type: entry.fertilizer.type, amount: entry.fertilizer.amount.toString(), date: entry.fertilizer.date });
           setIsEditingFertilizer(true);
           setIsAddingFertilizer(true);
           break;
         case 'Harvest':
           setEditingHarvest(entry.harvest);
-          setNewHarvest({ fieldId: entry.fieldId.toString(), amount: entry.harvest.amount.toString(), date: entry.harvest.date });
+          setNewHarvest({ farmId: entry.farmId.toString(), amount: entry.harvest.amount.toString(), date: entry.harvest.date });
           setIsEditingHarvest(true);
           setIsAddingHarvest(true);
           break;
         case 'Crop Rotation':
           setNewRotation({
-            fieldId: entry.fieldId.toString(),
+            farmId: entry.farmId.toString(),
             crop: entry.rotation.crop,
             startDate: new Date(entry.rotation.startDate).toISOString().split('T')[0],
             endDate: new Date(entry.rotation.endDate).toISOString().split('T')[0]
@@ -1266,17 +1312,17 @@ const DefaultComponent: React.FC = () => {
     const handleDeleteHistory = (entry: any) => {
       switch (entry.type) {
         case 'Water Usage':
-          setConfirmDelete({ id: entry.fieldId, type: 'waterUsage', date: entry.usage.date });
+          setConfirmDelete({ id: entry.farmId, type: 'waterUsage', date: entry.usage.date });
           break;
         case 'Fertilizer Usage':
-          setConfirmDelete({ id: entry.fieldId, type: 'fertilizer', date: entry.fertilizer.date });
+          setConfirmDelete({ id: entry.farmId, type: 'fertilizer', date: entry.fertilizer.date });
           break;
         case 'Harvest':
-          setConfirmDelete({ id: entry.fieldId, type: 'harvest', date: entry.harvest.date });
+          setConfirmDelete({ id: entry.farmId, type: 'harvest', date: entry.harvest.date });
           break;
         case 'Crop Rotation':
           setConfirmDelete({ 
-            id: entry.fieldId, 
+            id: entry.farmId, 
             type: 'rotation', 
             date: entry.rotation.startDate 
           });
@@ -1301,7 +1347,7 @@ const DefaultComponent: React.FC = () => {
                   {entry.icon}
                   <p><strong>{entry.type}</strong></p>
                 </div>
-                <p><strong>Field:</strong> {entry.field}</p>
+                <p><strong>Farm:</strong> {entry.farm}</p>
                 <p><strong>Date:</strong> {entry.date.toLocaleDateString()}</p>
                 {entry.type === 'Crop Rotation' ? (
                   <>
@@ -1334,7 +1380,7 @@ const DefaultComponent: React.FC = () => {
                       if (!open) {
                         setIsEditingWaterUsage(false);
                         setEditingWaterUsage(null);
-                        setNewWaterUsage({ fieldId: '', amount: '', date: '' });
+                        setNewWaterUsage({ farmId: '', amount: '', date: '' });
                       }
                     }}
                   >
@@ -1344,16 +1390,16 @@ const DefaultComponent: React.FC = () => {
                       </DialogHeader>
                       <form onSubmit={handleEditWaterUsage} className="space-y-4">
                         <div>
-                          <Label>Field</Label>
+                          <Label>Farm</Label>
                           <select 
                             className="w-full p-2 border rounded"
-                            value={newWaterUsage.fieldId}
-                            onChange={(e) => setNewWaterUsage({...newWaterUsage, fieldId: e.target.value})}
+                            value={newWaterUsage.farmId}
+                            onChange={(e) => setNewWaterUsage({...newWaterUsage, farmId: e.target.value})}
                             required
                           >
-                            <option value="">Select Field</option>
-                            {fields.map(field => (
-                              <option key={field.id} value={field.id}>{field.name}</option>
+                            <option value="">Select Farm</option>
+                            {farms.map(farm => (
+                              <option key={farm.id} value={farm.id}>{farm.name}</option>
                             ))}
                           </select>
                         </div>
@@ -1387,7 +1433,7 @@ const DefaultComponent: React.FC = () => {
                       if (!open) {
                         setIsEditingFertilizer(false);
                         setEditingFertilizer(null);
-                        setNewFertilizer({ fieldId: '', type: '', amount: '', date: '' });
+                        setNewFertilizer({ farmId: '', type: '', amount: '', date: '' });
                       }
                     }}
                   >
@@ -1397,16 +1443,16 @@ const DefaultComponent: React.FC = () => {
                       </DialogHeader>
                       <form onSubmit={handleEditFertilizer} className="space-y-4">
                         <div>
-                          <Label>Field</Label>
+                          <Label>Farm</Label>
                           <select 
                             className="w-full p-2 border rounded"
-                            value={newFertilizer.fieldId}
-                            onChange={(e) => setNewFertilizer({...newFertilizer, fieldId: e.target.value})}
+                            value={newFertilizer.farmId}
+                            onChange={(e) => setNewFertilizer({...newFertilizer, farmId: e.target.value})}
                             required
                           >
-                            <option value="">Select Field</option>
-                            {fields.map(field => (
-                              <option key={field.id} value={field.id}>{field.name}</option>
+                            <option value="">Select Farm</option>
+                            {farms.map(farm => (
+                              <option key={farm.id} value={farm.id}>{farm.name}</option>
                             ))}
                           </select>
                         </div>
@@ -1448,7 +1494,7 @@ const DefaultComponent: React.FC = () => {
                       if (!open) {
                         setIsEditingHarvest(false);
                         setEditingHarvest(null);
-                        setNewHarvest({ fieldId: '', amount: '', date: '' });
+                        setNewHarvest({ farmId: '', amount: '', date: '' });
                       }
                     }}
                   >
@@ -1458,16 +1504,16 @@ const DefaultComponent: React.FC = () => {
                       </DialogHeader>
                       <form onSubmit={handleEditHarvest} className="space-y-4">
                         <div>
-                          <Label>Field</Label>
+                          <Label>Farm</Label>
                           <select 
                             className="w-full p-2 border rounded"
-                            value={newHarvest.fieldId}
-                            onChange={(e) => setNewHarvest({...newHarvest, fieldId: e.target.value})}
+                            value={newHarvest.farmId}
+                            onChange={(e) => setNewHarvest({...newHarvest, farmId: e.target.value})}
                             required
                           >
-                            <option value="">Select Field</option>
-                            {fields.map(field => (
-                              <option key={field.id} value={field.id}>{field.name}</option>
+                            <option value="">Select Farm</option>
+                            {farms.map(farm => (
+                              <option key={farm.id} value={farm.id}>{farm.name}</option>
                             ))}
                           </select>
                         </div>
@@ -1500,7 +1546,7 @@ const DefaultComponent: React.FC = () => {
                     onOpenChange={(open) => {
                       if (!open) {
                         setIsAddingRotation(false);
-                        setNewRotation({ fieldId: '', crop: '', startDate: '', endDate: '' });
+                        setNewRotation({ farmId: '', crop: '', startDate: '', endDate: '' });
                       }
                     }}
                   >
@@ -1510,16 +1556,16 @@ const DefaultComponent: React.FC = () => {
                       </DialogHeader>
                       <form onSubmit={handleAddRotation} className="space-y-4">
                         <div>
-                          <Label>Field</Label>
+                          <Label>Farm</Label>
                           <select 
                             className="w-full p-2 border rounded"
-                            value={newRotation.fieldId}
-                            onChange={(e) => setNewRotation({...newRotation, fieldId: e.target.value})}
+                            value={newRotation.farmId}
+                            onChange={(e) => setNewRotation({...newRotation, farmId: e.target.value})}
                             required
                           >
-                            <option value="">Select Field</option>
-                            {fields.map(field => (
-                              <option key={field.id} value={field.id}>{field.name}</option>
+                            <option value="">Select Farm</option>
+                            {farms.map(farm => (
+                              <option key={farm.id} value={farm.id}>{farm.name}</option>
                             ))}
                           </select>
                         </div>
@@ -1592,7 +1638,7 @@ const DefaultComponent: React.FC = () => {
                 <li>View your farm's sustainability score and detailed metrics</li>
                 <li>Check the 10-day weather forecast</li>
                 <li>See upcoming planned activities</li>
-                <li>Monitor active field issues</li>
+                <li>Monitor active farm issues</li>
                 <li>Manage daily tasks</li>
               </ul>
             </div>
@@ -1608,7 +1654,7 @@ const DefaultComponent: React.FC = () => {
               <ul className="list-disc pl-6 space-y-1">
                 <li>View historical water usage data in graph form</li>
                 <li>Monitor water efficiency scores</li>
-                <li>Track irrigation patterns across different fields</li>
+                <li>Track irrigation patterns across different farms</li>
                 <li>Record new water applications through Quick Actions</li>
               </ul>
             </div>
@@ -1617,16 +1663,16 @@ const DefaultComponent: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Leaf className="h-4 w-4" />
-              Crops & Fields
+              Crops & Farms
             </h2>
             <div className="mt-2 space-y-2 text-gray-600">
-              <p>Manage your fields and crops:</p>
+              <p>Manage your farms and crops:</p>
               <ul className="list-disc pl-6 space-y-1">
-                <li>Add new fields with detailed information</li>
-                <li>Track crop rotations and field history</li>
+                <li>Add new farms with detailed information</li>
+                <li>Track crop rotations and farm history</li>
                 <li>Monitor harvest records</li>
                 <li>View fertilizer applications</li>
-                <li>Edit or delete existing fields</li>
+                <li>Edit or delete existing farms</li>
               </ul>
             </div>
           </div>
@@ -1634,10 +1680,10 @@ const DefaultComponent: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
-              Field Issues
+              Farm Issues
             </h2>
             <div className="mt-2 space-y-2 text-gray-600">
-              <p>Track and manage field problems:</p>
+              <p>Track and manage farm problems:</p>
               <ul className="list-disc pl-6 space-y-1">
                 <li>Report new issues with severity levels</li>
                 <li>Track the status of ongoing problems</li>
@@ -1684,7 +1730,7 @@ const DefaultComponent: React.FC = () => {
       title: '',
       start: new Date(),
       end: new Date(),
-      fieldId: 0,
+      farmId: 0,
       type: 'planting',
       notes: ''
     });
@@ -1713,7 +1759,7 @@ const DefaultComponent: React.FC = () => {
         title: '',
         start: new Date(),
         end: new Date(),
-        fieldId: 0,
+        farmId: 0,
         type: 'planting',
         notes: ''
       });
@@ -1862,7 +1908,7 @@ const DefaultComponent: React.FC = () => {
                       <div
                         key={event.id}
                         className={`group relative p-1 rounded text-xs ${eventColors[event.type]}`}
-                        title={`${event.title}\nField: ${fields.find(f => f.id === event.fieldId)?.name}\n${event.notes}`}
+                        title={`${event.title}\nFarm: ${farms.find(f => f.id === event.farmId)?.name}\n${event.notes}`}
                       >
                         <div className="flex justify-between items-center">
                           <span className="truncate">{event.title}</span>
@@ -1902,16 +1948,16 @@ const DefaultComponent: React.FC = () => {
                 />
               </div>
               <div>
-                <Label>Field</Label>
+                <Label>Farm</Label>
                 <select
                   className="w-full p-2 border rounded"
-                  value={newEvent.fieldId}
-                  onChange={(e) => setNewEvent({ ...newEvent, fieldId: Number(e.target.value) })}
+                  value={newEvent.farmId}
+                  onChange={(e) => setNewEvent({ ...newEvent, farmId: Number(e.target.value) })}
                   required
                 >
-                  <option value="">Select Field</option>
-                  {fields.map(field => (
-                    <option key={field.id} value={field.id}>{field.name}</option>
+                  <option value="">Select Farm</option>
+                  {farms.map(farm => (
+                    <option key={farm.id} value={farm.id}>{farm.name}</option>
                   ))}
                 </select>
               </div>
@@ -2005,7 +2051,7 @@ const DefaultComponent: React.FC = () => {
                     <div>
                       <p className="font-medium">{event.title}</p>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <span>Field: {fields.find(f => f.id === event.fieldId)?.name}</span>
+                        <span>Farm: {farms.find(f => f.id === event.farmId)?.name}</span>
                         <span>•</span>
                         <span>{event.type}</span>
                       </div>
@@ -2032,11 +2078,11 @@ const DefaultComponent: React.FC = () => {
     );
   };
   
-  const FieldIssues = () => {
+  const FarmIssues = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Active Field Issues</CardTitle>
+          <CardTitle>Active Farm Issues</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -2076,22 +2122,22 @@ const DefaultComponent: React.FC = () => {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Field Performance Report</CardTitle>
+          <CardTitle>Farm Performance Report</CardTitle>
         </CardHeader>
         <CardContent>
           <CropFilter />
-          {getFilteredFields().length > 0 ? (
+          {getFilteredFarms().length > 0 ? (
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <Droplet className="h-6 w-6 text-blue-500 mb-2" />
                   <p className="text-sm text-gray-500">Total Water Usage</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {getFilteredFields()
+                    {getFilteredFarms()
                       .reduce(
-                        (total, field) =>
+                        (total, farm) =>
                           total +
-                          field.waterHistory.reduce(
+                          farm.waterHistory.reduce(
                             (sum, record) => sum + record.amount,
                             0
                           ),
@@ -2105,13 +2151,24 @@ const DefaultComponent: React.FC = () => {
                   <Leaf className="h-6 w-6 text-green-500 mb-2" />
                   <p className="text-sm text-gray-500">Total Fertilizer Used</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {/* ...existing code... */}
+                    {getFilteredFarms()
+                      .reduce(
+                        (total, farm) =>
+                          total +
+                          farm.fertilizerHistory.reduce(
+                            (sum, record) => sum + record.amount,
+                            0
+                          ),
+                        0
+                      )
+                      .toLocaleString()}{" "}
+                    lbs
                   </p>
                 </div>
-                <div className="p-4 bg-yellow-50 rounded-lg">
-                  <LayoutDashboard className="h-6 w-6 text-yellow-500 mb-2" />
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <LayoutDashboard className="h-6 w-6 text-purple-500 mb-2" />
                   <p className="text-sm text-gray-500">Total Harvest</p>
-                  <p className="text-2xl font-bold text-yellow-600">
+                  <p className="text-2xl font-bold text-purple-600">
                     {/* ...existing code... */}
                   </p>
                 </div>
@@ -2120,9 +2177,9 @@ const DefaultComponent: React.FC = () => {
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={getFilteredFields().flatMap((field) =>
-                      field.harvestHistory.map((harvest) => ({
-                        field: field.name,
+                    data={getFilteredFarms().flatMap((farm) =>
+                      farm.harvestHistory.map((harvest) => ({
+                        farm: farm.name,
                         amount: harvest.amount,
                         date: new Date(harvest.date).toLocaleDateString(),
                       }))
@@ -2145,9 +2202,9 @@ const DefaultComponent: React.FC = () => {
           ) : (
             <div className="text-center p-8">
               <p className="text-gray-500">
-                {fields.length === 0
-                  ? "No data available. Add fields and record activities to see reports."
-                  : "No fields found for the selected crop."}
+                {farms.length === 0
+                  ? "No data available. Add farms and record activities to see reports."
+                  : "No farms found for the selected crop."}
               </p>
             </div>
           )}
@@ -2158,7 +2215,7 @@ const DefaultComponent: React.FC = () => {
 
   return (
     <div>
-      {showWalkthrough && <Walkthrough onComplete={handleWalkthroughComplete} />}
+      {showWalkthrough && <Walkthrough onComplete={handleWalkthroughComplete} setActiveTab={setActiveTab} />}
       <div className="p-6 max-w-7xl mx-auto bg-white dark:bg-gray-900 dark:text-white">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-4">Farm Management Dashboard</h1>
@@ -2167,10 +2224,10 @@ const DefaultComponent: React.FC = () => {
             <div className="flex justify-between items-center">
               <TabsList className="hidden md:flex">
                 <TabsTrigger data-walkthrough="overview-tab" value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="water">Water Management</TabsTrigger>
-                <TabsTrigger value="crops">Crops</TabsTrigger>
-                <TabsTrigger value="issues">Field Issues</TabsTrigger>
-                <TabsTrigger value="reports">Reports</TabsTrigger>
+                <TabsTrigger data-walkthrough="water-tab" value="water">Water Management</TabsTrigger>
+                <TabsTrigger data-walkthrough="farms-tab" value="farms">Farms</TabsTrigger> {/* Changed from crops-tab and Crops */}
+                <TabsTrigger data-walkthrough="issues-tab" value="issues">Farm Issues</TabsTrigger> {/* Changed from Field Issues */}
+                <TabsTrigger data-walkthrough="reports-tab" value="reports">Reports</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
                 <TabsTrigger data-walkthrough="crop-plan" value="cropplan">Crop Plan</TabsTrigger>
                 <TabsTrigger value="instructions"><Info className="h-4 w-4 mr-2" />Instructions</TabsTrigger>
@@ -2199,16 +2256,16 @@ const DefaultComponent: React.FC = () => {
                           </DialogHeader>
                           <form onSubmit={isEditingWaterUsage ? handleEditWaterUsage : handleAddWaterUsage} className="space-y-4">
                             <div>
-                              <Label>Field</Label>
+                              <Label>Farm</Label>
                               <select 
                                 className="w-full p-2 border rounded"
-                                value={newWaterUsage.fieldId}
-                                onChange={(e) => setNewWaterUsage({...newWaterUsage, fieldId: e.target.value})}
+                                value={newWaterUsage.farmId}
+                                onChange={(e) => setNewWaterUsage({...newWaterUsage, farmId: e.target.value})}
                                 required
                               >
-                                <option value="">Select Field</option>
-                                {fields.map(field => (
-                                  <option key={field.id} value={field.id}>{field.name}</option>
+                                <option value="">Select Farm</option>
+                                {farms.map(farm => (
+                                  <option key={farm.id} value={farm.id}>{farm.name}</option>
                                 ))}
                               </select>
                             </div>
@@ -2248,16 +2305,16 @@ const DefaultComponent: React.FC = () => {
                           </DialogHeader>
                           <form onSubmit={isEditingFertilizer ? handleEditFertilizer : handleAddFertilizer} className="space-y-4">
                             <div>
-                              <Label>Field</Label>
+                              <Label>Farm</Label>
                               <select 
                                 className="w-full p-2 border rounded"
-                                value={newFertilizer.fieldId}
-                                onChange={(e) => setNewFertilizer({...newFertilizer, fieldId: e.target.value})}
+                                value={newFertilizer.farmId}
+                                onChange={(e) => setNewFertilizer({...newFertilizer, farmId: e.target.value})}
                                 required
                               >
-                                <option value="">Select Field</option>
-                                {fields.map(field => (
-                                  <option key={field.id} value={field.id}>{field.name}</option>
+                                <option value="">Select Farm</option>
+                                {farms.map(farm => (
+                                  <option key={farm.id} value={farm.id}>{farm.name}</option>
                                 ))}
                               </select>
                             </div>
@@ -2305,16 +2362,16 @@ const DefaultComponent: React.FC = () => {
                           </DialogHeader>
                           <form onSubmit={isEditingHarvest ? handleEditHarvest : handleAddHarvest} className="space-y-4">
                             <div>
-                              <Label>Field</Label>
+                              <Label>Farm</Label>
                               <select 
                                 className="w-full p-2 border rounded"
-                                value={newHarvest.fieldId}
-                                onChange={(e) => setNewHarvest({...newHarvest, fieldId: e.target.value})}
+                                value={newHarvest.farmId}
+                                onChange={(e) => setNewHarvest({...newHarvest, farmId: e.target.value})}
                                 required
                               >
-                                <option value="">Select Field</option>
-                                {fields.map(field => (
-                                  <option key={field.id} value={field.id}>{field.name}</option>
+                                <option value="">Select Farm</option>
+                                {farms.map(farm => (
+                                  <option key={farm.id} value={farm.id}>{farm.name}</option>
                                 ))}
                               </select>
                             </div>
@@ -2354,16 +2411,16 @@ const DefaultComponent: React.FC = () => {
                           </DialogHeader>
                           <form onSubmit={handleAddRotation} className="space-y-4">
                             <div>
-                              <Label>Field</Label>
+                              <Label>Farm</Label>
                               <select 
                                 className="w-full p-2 border rounded"
-                                value={newRotation.fieldId}
-                                onChange={(e) => setNewRotation({...newRotation, fieldId: e.target.value})}
+                                value={newRotation.farmId}
+                                onChange={(e) => setNewRotation({...newRotation, farmId: e.target.value})}
                                 required
                               >
-                                <option value="">Select Field</option>
-                                {fields.map(field => (
-                                  <option key={field.id} value={field.id}>{field.name}</option>
+                                <option value="">Select Farm</option>
+                                {farms.map(farm => (
+                                  <option key={farm.id} value={farm.id}>{farm.name}</option>
                                 ))}
                               </select>
                             </div>
@@ -2403,7 +2460,7 @@ const DefaultComponent: React.FC = () => {
                 <SustainabilityScoreCard />
                 <WeatherPreview />
                 <UpcomingCropPlan />
-                <FieldIssues />
+                <FarmIssues />
                 <TaskManager />
               </div>
             </TabsContent>
@@ -2420,11 +2477,11 @@ const DefaultComponent: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="h-[300px]">
-                      {fields.length > 0 ? (
+                      {farms.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={fields.flatMap(field => 
-                            field.waterHistory.map(usage => ({
-                              field: field.name,
+                          <BarChart data={farms.flatMap(farm => 
+                            farm.waterHistory.map(usage => ({
+                              farm: farm.name,
                               amount: usage.amount,
                               date: new Date(usage.date).toLocaleDateString()
                             }))
@@ -2448,27 +2505,27 @@ const DefaultComponent: React.FC = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="crops">
+            <TabsContent value="farms">
               <div className="space-y-4">
                 <Button
-                  data-walkthrough="add-field"
-                  onClick={() => setIsAddingField(true)}
+                  data-walkthrough="add-farm"
+                  onClick={() => setIsAddingFarm(true)}
                   className="mb-4"
                 >
-                  Add New Field
+                  Add New Farm
                 </Button>
 
-                <Dialog open={isAddingField} onOpenChange={setIsAddingField}>
+                <Dialog open={isAddingFarm} onOpenChange={setIsAddingFarm}>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Add New Field</DialogTitle>
+                      <DialogTitle>Add New Farm</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleAddField} className="space-y-4">
+                    <form onSubmit={handleAddFarm} className="space-y-4">
                       <div>
-                        <Label>Field Name</Label>
+                        <Label>Farm Name</Label>
                         <Input
-                          value={newField.name}
-                          onChange={(e) => setNewField({ ...newField, name: e.target.value })}
+                          value={newFarm.name}
+                          onChange={(e) => setNewFarm({ ...newFarm, name: e.target.value })}
                           required
                         />
                       </div>
@@ -2476,57 +2533,57 @@ const DefaultComponent: React.FC = () => {
                         <Label>Size (acres)</Label>
                         <Input
                           type="number"
-                          value={newField.size}
-                          onChange={(e) => setNewField({ ...newField, size: e.target.value })}
+                          value={newFarm.size}
+                          onChange={(e) => setNewFarm({ ...newFarm, size: e.target.value })}
                           required
                         />
                       </div>
                       <div>
                         <Label>Current Crop</Label>
                         <Input
-                          value={newField.crop}
-                          onChange={(e) => setNewField({ ...newField, crop: e.target.value })}
+                          value={newFarm.crop}
+                          onChange={(e) => setNewFarm({ ...newFarm, crop: e.target.value })}
                           required
                         />
                       </div>
                       <div>
                         <Label>Crop Rotation History</Label>
                         <div className="space-y-2">
-                          {newField.rotationHistory.map((rotation, index) => (
+                          {newFarm.rotationHistory.map((rotation, index) => (
                             <div key={index} className="flex gap-2 items-center">
                               <Input
                                 placeholder="Crop"
                                 value={rotation.crop}
                                 onChange={(e) => {
-                                  const updated = [...newField.rotationHistory];
+                                  const updated = [...newFarm.rotationHistory];
                                   updated[index].crop = e.target.value;
-                                  setNewField({ ...newField, rotationHistory: updated });
+                                  setNewFarm({ ...newFarm, rotationHistory: updated });
                                 }}
                               />
                               <Input
                                 type="date"
                                 value={rotation.startDate}
                                 onChange={(e) => {
-                                  const updated = [...newField.rotationHistory];
+                                  const updated = [...newFarm.rotationHistory];
                                   updated[index].startDate = e.target.value;
-                                  setNewField({ ...newField, rotationHistory: updated });
+                                  setNewFarm({ ...newFarm, rotationHistory: updated });
                                 }}
                               />
                               <Input
                                 type="date"
                                 value={rotation.endDate}
                                 onChange={(e) => {
-                                  const updated = [...newField.rotationHistory];
+                                  const updated = [...newFarm.rotationHistory];
                                   updated[index].endDate = e.target.value;
-                                  setNewField({ ...newField, rotationHistory: updated });
+                                  setNewFarm({ ...newFarm, rotationHistory: updated });
                                 }}
                               />
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  const updated = newField.rotationHistory.filter((_, i) => i !== index);
-                                  setNewField({ ...newField, rotationHistory: updated });
+                                  const updated = newFarm.rotationHistory.filter((_, i) => i !== index);
+                                  setNewFarm({ ...newFarm, rotationHistory: updated });
                                 }}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -2537,10 +2594,10 @@ const DefaultComponent: React.FC = () => {
                             type="button"
                             variant="outline"
                             onClick={() => {
-                              setNewField({
-                                ...newField,
+                              setNewFarm({
+                                ...newFarm,
                                 rotationHistory: [
-                                  ...newField.rotationHistory,
+                                  ...newFarm.rotationHistory,
                                   { crop: '', startDate: '', endDate: '' }
                                 ]
                               });
@@ -2551,23 +2608,23 @@ const DefaultComponent: React.FC = () => {
                         </div>
                       </div>
                       <Button type="submit" className="w-full">
-                        Add Field
+                        Add Farm
                       </Button>
                     </form>
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={isEditingField} onOpenChange={setIsEditingField}>
+                <Dialog open={isEditingFarm} onOpenChange={setIsEditingFarm}>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Edit Field</DialogTitle>
+                      <DialogTitle>Edit Farm</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleEditField} className="space-y-4">
+                    <form onSubmit={handleEditFarm} className="space-y-4">
                       <div>
-                        <Label>Field Name</Label>
+                        <Label>Farm Name</Label>
                         <Input
-                          value={newField.name}
-                          onChange={(e) => setNewField({ ...newField, name: e.target.value })}
+                          value={newFarm.name}
+                          onChange={(e) => setNewFarm({ ...newFarm, name: e.target.value })}
                           required
                         />
                       </div>
@@ -2575,16 +2632,16 @@ const DefaultComponent: React.FC = () => {
                         <Label>Size (acres)</Label>
                         <Input
                           type="number"
-                          value={newField.size}
-                          onChange={(e) => setNewField({ ...newField, size: e.target.value })}
+                          value={newFarm.size}
+                          onChange={(e) => setNewFarm({ ...newFarm, size: e.target.value })}
                           required
                         />
                       </div>
                       <div>
                         <Label>Crop Type</Label>
                         <Input
-                          value={newField.crop}
-                          onChange={(e) => setNewField({ ...newField, crop: e.target.value })}
+                          value={newFarm.crop}
+                          onChange={(e) => setNewFarm({ ...newFarm, crop: e.target.value })}
                           required
                         />
                       </div>
@@ -2596,25 +2653,25 @@ const DefaultComponent: React.FC = () => {
                 </Dialog>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {fields.length > 0 ? (
-                    fields.map((field) => (
+                  {farms.length > 0 ? (
+                    farms.map((farm) => (
                       <Card
-                        key={field.id}
+                        key={farm.id}
                         className="cursor-pointer hover:shadow-lg transition-shadow"
                       >
                         <CardHeader>
-                          <CardTitle>{field.name}</CardTitle>
+                          <CardTitle>{farm.name}</CardTitle>
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-2">
-                            <p className="text-gray-500">Current Crop: {field.crop}</p>
-                            <p className="text-gray-500">Size: {field.size.toLocaleString()} acres</p>
+                            <p className="text-gray-500">Current Crop: {farm.crop}</p>
+                            <p className="text-gray-500">Size: {farm.size.toLocaleString()} acres</p>
                             
-                            {field.rotationHistory && field.rotationHistory.length > 0 && (
+                            {farm.rotationHistory && farm.rotationHistory.length > 0 && (
                               <div className="mt-4">
                                 <p className="font-medium mb-2">Crop Rotation History</p>
                                 <div className="space-y-1">
-                                  {field.rotationHistory.map((rotation, index) => (
+                                  {farm.rotationHistory.map((rotation, index) => (
                                     <div key={index} className="text-sm text-gray-600">
                                       {rotation.crop}: {new Date(rotation.startDate).toLocaleDateString()} - {new Date(rotation.endDate).toLocaleDateString()}
                                     </div>
@@ -2628,9 +2685,9 @@ const DefaultComponent: React.FC = () => {
                                 <Droplet className="h-4 w-4 text-blue-500" />
                                 <span>
                                   Last watered:{" "}
-                                  {field.waterHistory.length > 0
+                                  {farm.waterHistory.length > 0
                                     ? new Date(
-                                        field.waterHistory[field.waterHistory.length - 1].date
+                                        farm.waterHistory[farm.waterHistory.length - 1].date
                                       ).toLocaleDateString()
                                     : "Never"}
                                 </span>
@@ -2639,9 +2696,9 @@ const DefaultComponent: React.FC = () => {
                                 <Leaf className="h-4 w-4 text-green-500" />
                                 <span>
                                   Last fertilized:{" "}
-                                  {field.fertilizerHistory.length > 0
+                                  {farm.fertilizerHistory.length > 0
                                     ? new Date(
-                                        field.fertilizerHistory[field.fertilizerHistory.length - 1]
+                                        farm.fertilizerHistory[farm.fertilizerHistory.length - 1]
                                           .date
                                       ).toLocaleDateString()
                                     : "Never"}
@@ -2651,9 +2708,9 @@ const DefaultComponent: React.FC = () => {
                                 <LayoutDashboard className="h-4 w-4 text-purple-500" />
                                 <span>
                                   Last harvest:{" "}
-                                  {field.harvestHistory.length > 0
+                                  {farm.harvestHistory.length > 0
                                     ? new Date(
-                                        field.harvestHistory[field.harvestHistory.length - 1].date
+                                        farm.harvestHistory[farm.harvestHistory.length - 1].date
                                       ).toLocaleDateString()
                                     : "Never"}
                                 </span>
@@ -2662,9 +2719,9 @@ const DefaultComponent: React.FC = () => {
                                 <RotateCw className="h-4 w-4 text-orange-500" />
                                 <span>
                                   Last rotation:{" "}
-                                  {field.rotationHistory && field.rotationHistory.length > 0
-                                    ? `${field.rotationHistory[field.rotationHistory.length - 1].crop} (${
-                                        new Date(field.rotationHistory[field.rotationHistory.length - 1].startDate).toLocaleDateString()
+                                  {farm.rotationHistory && farm.rotationHistory.length > 0
+                                    ? `${farm.rotationHistory[farm.rotationHistory.length - 1].crop} (${
+                                        new Date(farm.rotationHistory[farm.rotationHistory.length - 1].startDate).toLocaleDateString()
                                       })`
                                     : "Never"}
                                 </span>
@@ -2675,14 +2732,14 @@ const DefaultComponent: React.FC = () => {
                                 variant="ghost" 
                                 size="sm"
                                 onClick={() => {
-                                  setEditingField(field);
-                                  setNewField({ 
-                                    name: field.name, 
-                                    size: field.size, 
-                                    crop: field.crop,
-                                    rotationHistory: field.rotationHistory || []
+                                  setEditingFarm(farm);
+                                  setNewFarm({ 
+                                    name: farm.name, 
+                                    size: farm.size, 
+                                    crop: farm.crop,
+                                    rotationHistory: farm.rotationHistory || []
                                   });
-                                  setIsEditingField(true);
+                                  setIsEditingFarm(true);
                                 }}
                               >
                                 <Edit3 className="h-4 w-4" />
@@ -2690,7 +2747,7 @@ const DefaultComponent: React.FC = () => {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => handleDeleteField(field.id)}
+                                onClick={() => handleDeleteFarm(farm.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -2702,7 +2759,7 @@ const DefaultComponent: React.FC = () => {
                   ) : (
                     <div className="col-span-2 text-center p-8 border rounded-lg border-dashed">
                       <p className="text-gray-500">
-                        No fields added yet. Click "Add New Field" to get started.
+                        No farms added yet. Click "Add New Farm" to get started.
                       </p>
                     </div>
                   )}
@@ -2748,11 +2805,11 @@ const DefaultComponent: React.FC = () => {
 type AnyHistoryEntry = {
   type: 'Water Usage' | 'Fertilizer Usage' | 'Harvest' | 'Crop Rotation';
   date: Date;
-  field: string;
+  farm: string;
   amount?: string;
   icon: React.ReactNode;
   color: string;
-  fieldId: number;
+  farmId: number;
   usage?: WaterUsage;
   fertilizer?: any;
   harvest?: any;
