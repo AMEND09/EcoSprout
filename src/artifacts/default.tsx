@@ -2231,6 +2231,16 @@ const DefaultComponent: React.FC = () => {
                 <TabsTrigger value="history">History</TabsTrigger>
                 <TabsTrigger data-walkthrough="crop-plan" value="cropplan">Crop Plan</TabsTrigger>
                 <TabsTrigger value="instructions"><Info className="h-4 w-4 mr-2" />Instructions</TabsTrigger>
+                <TabsTrigger value="documentation" asChild>
+                  <a
+                    href="https://github.com/AMEND09/farmerapp/blob/Documentation/docs/index.md"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center"
+                  >
+                    Documentation
+                  </a>
+                </TabsTrigger>
               </TabsList>
               <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
