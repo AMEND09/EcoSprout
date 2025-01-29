@@ -2233,7 +2233,7 @@ const DefaultComponent: React.FC = () => {
                 <TabsTrigger value="instructions"><Info className="h-4 w-4 mr-2" />Instructions</TabsTrigger>
                 <TabsTrigger value="documentation" asChild>
                   <a
-                    href="https://github.com/AMEND09/farmerapp/blob/Documentation/docs/index.md"
+                    href="https://github.com/AMEND09/farmerapp/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center"
