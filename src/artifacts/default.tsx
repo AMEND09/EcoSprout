@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Bar } from 'recharts';
-import { Droplet, Leaf, LayoutDashboard, Info, AlertTriangle, Bug, Trash2, Menu, Edit3, RotateCw } from 'lucide-react';
+import { Droplet, Leaf, LayoutDashboard, Info, AlertTriangle, Bug, Trash2, Menu, Edit3, RotateCw, Github } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -2231,18 +2231,19 @@ const DefaultComponent: React.FC = () => {
                 <TabsTrigger value="history">History</TabsTrigger>
                 <TabsTrigger data-walkthrough="crop-plan" value="cropplan">Crop Plan</TabsTrigger>
                 <TabsTrigger value="instructions"><Info className="h-4 w-4 mr-2" />Instructions</TabsTrigger>
-                <TabsTrigger value="documentation" asChild>
-                  <a
-                    href="https://github.com/AMEND09/farmerapp/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center"
-                  >
-                    Documentation
-                  </a>
-                </TabsTrigger>
               </TabsList>
-              <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+              <div className="flex items-center gap-4">
+                <a
+                  href="https://github.com/AMEND09/farmerapp/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Github className="h-5 w-5 mr-2" />
+                  Documentation
+                </a>
+                <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+              </div>
             </div>
 
             <TabsContent value="overview">
