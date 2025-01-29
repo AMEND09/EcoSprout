@@ -17,8 +17,6 @@ Farmerapp is a farm management dashboard application that helps you manage field
 
 <div class="space-y-8">
 
-# Farm Management Dashboard - TSA Software Development Documentation
-
 ## Project Overview
 <div class="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg mb-6">
 A comprehensive farm management solution designed to help farmers track and optimize their agricultural operations through sustainable practices and data-driven decisions.
