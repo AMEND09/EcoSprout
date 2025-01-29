@@ -2240,7 +2240,7 @@ const DefaultComponent: React.FC = () => {
                   className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <Github className="h-5 w-5 mr-2" />
-                  Documentation
+                  Github
                 </a>
                 <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
               </div>
