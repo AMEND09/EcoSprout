@@ -1227,6 +1227,9 @@ const DefaultComponent: React.FC = () => {
 
   // Update the HistoryPage component to include rotations
   const HistoryPage = () => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchBy, setSearchBy] = useState('all');
+
     const allHistory = useMemo(() => {
       const history: AnyHistoryEntry[] = farms.flatMap(farm => [
         ...farm.waterHistory.map(usage => ({
@@ -1274,6 +1277,32 @@ const DefaultComponent: React.FC = () => {
 
       return history.sort((a, b) => b.date.getTime() - a.date.getTime());
     }, [farms]);
+
+    const filteredHistory = useMemo(() => {
+      if (!searchTerm) return allHistory;
+      return allHistory.filter(entry => {
+        switch (searchBy) {
+          case 'farm':
+            return entry.farm.toLowerCase().includes(searchTerm.toLowerCase());
+          case 'type':
+            return entry.type.toLowerCase().includes(searchTerm.toLowerCase());
+          case 'amount':
+            return entry.amount?.toLowerCase().includes(searchTerm.toLowerCase());
+          case 'date':
+            return entry.date.toLocaleDateString().includes(searchTerm);
+          case 'crop':
+            return entry.crop?.toLowerCase().includes(searchTerm.toLowerCase());
+          default:
+            return (
+              entry.farm.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              entry.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              (entry.amount && entry.amount.toLowerCase().includes(searchTerm.toLowerCase())) ||
+              (entry.crop && entry.crop.toLowerCase().includes(searchTerm.toLowerCase())) ||
+              entry.date.toLocaleDateString().includes(searchTerm)
+            );
+        }
+      });
+    }, [searchTerm, searchBy, allHistory]);
 
     const handleEditHistory = (entry: any) => {
       switch (entry.type) {
@@ -1339,7 +1368,27 @@ const DefaultComponent: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {allHistory.map((entry, index) => (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search history..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mb-4"
+              />
+              <select
+                value={searchBy}
+                onChange={(e) => setSearchBy(e.target.value)}
+                className="border rounded px-2 py-1 mb-4 h-[38px]" // Match the height of the search bar
+              >
+                <option value="all">All</option>
+                <option value="farm">Farm</option>
+                <option value="type">Type</option>
+                <option value="amount">Amount</option>
+                <option value="date">Date</option>
+                <option value="crop">Crop</option>
+              </select>
+            </div>
+            {filteredHistory.map((entry, index) => (
               <div key={index} className={`p-2 border-l-4 ${
                 entry.type === 'Crop Rotation' ? 'border-orange-500' : `border-${entry.color}-500`
               } rounded`}>
