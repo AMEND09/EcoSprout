@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Bar } from 'recharts';
-import { Droplet, Leaf, LayoutDashboard, Info, AlertTriangle, Bug, Trash2, Menu, Edit3, RotateCw, Github } from 'lucide-react';
+import { Droplet, Leaf, LayoutDashboard, Info, AlertTriangle, Bug, Trash2, Edit3, RotateCw, Download, Upload, Settings } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -237,11 +237,15 @@ const Walkthrough: React.FC<{ onComplete: () => void, setActiveTab: (tab: string
                 </Button>
               )}
               {currentStep < WALKTHROUGH_STEPS.length - 1 ? (
-                <Button onClick={() => setCurrentStep(prev => prev + 1)}>
+                <Button 
+                  onClick={() => setCurrentStep(prev => prev + 1)}
+                >
                   Next
                 </Button>
               ) : (
-                <Button onClick={onComplete}>
+                <Button 
+                  onClick={onComplete}
+                >
                   Get Started
                 </Button>
               )}
@@ -519,41 +523,7 @@ const calculateRotationScore = (farm: Farm): number => {
   return Math.min(100, score);
 };
 
-const Navigation: React.FC<{ activeTab: string, setActiveTab: (tab: string) => void }> = ({ activeTab, setActiveTab }) => {
-  const menuItems = [
-    { value: "overview", label: "Overview" },
-    { value: "water", label: "Water Management" },
-    { value: "farms", label: "Farms" },
-    { value: "issues", label: "Farm Issues" },
-    { value: "reports", label: "Reports" },
-    { value: "history", label: "History" },
-    { value: "cropplan", label: "Crop Plan" },
-    { value: "instructions", label: "Instructions" }
-  ];
-
-  return (
-    <div className="block md:hidden">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon">
-            <Menu className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
-          {menuItems.map((item) => (
-            <DropdownMenuItem 
-              key={item.value}
-              className={`cursor-pointer ${activeTab === item.value ? 'bg-gray-100' : ''}`}
-              onClick={() => setActiveTab(item.value)}
-            >
-              {item.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-};
+// Removed unused Navigation component
 
 const getWeatherInfo = (code: number) => {
   switch (true) {
@@ -564,6 +534,15 @@ const getWeatherInfo = (code: number) => {
     default: return { desc: 'Unknown', icon: '❓' };
   }
 };
+
+interface ExportData {
+  version: string;
+  exportDate: string;
+  farms: Farm[];
+  tasks: Task[];
+  issues: Issue[];
+  cropPlanEvents: CropPlanEvent[];
+}
 
 const DefaultComponent: React.FC = () => {
   const [farms, setFarms] = useState<Farm[]>(() => {
@@ -618,6 +597,11 @@ const DefaultComponent: React.FC = () => {
   });
 
   const [cropFilter, setCropFilter] = useState<string>("all");
+
+  const [importNotification, setImportNotification] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   const getFilteredFarms = () => {
     if (cropFilter === "all") return farms;
@@ -975,6 +959,68 @@ const DefaultComponent: React.FC = () => {
     setActiveTab('overview'); // Switch to overview tab when starting walkthrough
   };
 
+  const handleExportData = () => {
+    const exportData: ExportData = {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      farms,
+      tasks,
+      issues,
+      cropPlanEvents
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `farm-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e: ProgressEvent<FileReader>) => {
+      try {
+        const importedData = JSON.parse(e.target?.result as string) as ExportData;
+        
+        // Validate the imported data structure
+        if (!importedData.version || !importedData.exportDate) {
+          throw new Error('Invalid file format');
+        }
+
+        // Convert date strings back to Date objects in cropPlanEvents
+        const processedEvents = importedData.cropPlanEvents.map(event => ({
+          ...event,
+          start: new Date(event.start),
+          end: new Date(event.end)
+        }));
+
+        // Update all state
+        setFarms(importedData.farms);
+        setTasks(importedData.tasks);
+        setIssues(importedData.issues);
+        setCropPlanEvents(processedEvents);
+
+        setImportNotification({
+          success: true,
+          message: 'Data imported successfully'
+        });
+      } catch (error) {
+        setImportNotification({
+          success: false,
+          message: 'Error importing file: Invalid format'
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const TaskManager = () => {
     const [taskInput, setTaskInput] = useState({ title: '', dueDate: '', priority: 'medium' });
 
@@ -996,12 +1042,14 @@ const DefaultComponent: React.FC = () => {
                 placeholder="New task"
                 value={taskInput.title}
                 onChange={(e) => setTaskInput(prev => ({ ...prev, title: e.target.value }))}
+                className="border rounded px-2 py-1"
               />
               <Input 
                 name="dueDate"
                 type="date"
                 value={taskInput.dueDate}
                 onChange={(e) => setTaskInput(prev => ({ ...prev, dueDate: e.target.value }))}
+                className="border rounded px-2 py-1"
               />
               <Button onClick={handleTaskSubmit}>Add</Button>
             </div>
@@ -1068,11 +1116,12 @@ const DefaultComponent: React.FC = () => {
                 placeholder="Issue type (pest, disease, etc.)"
                 value={issueInput.type}
                 onChange={(e) => setIssueInput(prev => ({ ...prev, type: e.target.value }))}
+                className="border rounded px-2 py-1"
               />
               <select 
                 data-walkthrough="issue-severity"
                 name="severity"
-                className="border rounded p-2"
+                className="w-full p-2 border rounded"
                 value={issueInput.severity}
                 onChange={(e) => setIssueInput(prev => ({ ...prev, severity: e.target.value }))}
               >
@@ -1086,6 +1135,7 @@ const DefaultComponent: React.FC = () => {
               placeholder="Description"
               value={issueInput.description}
               onChange={(e) => setIssueInput(prev => ({ ...prev, description: e.target.value }))}
+              className="border rounded px-2 py-1"
             />
             <Button onClick={handleIssueSubmit} className="w-full">Report Issue</Button>
             
@@ -1373,7 +1423,7 @@ const DefaultComponent: React.FC = () => {
                 placeholder="Search history..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="mb-4"
+                className="mb-4 border rounded px-2 py-1"
               />
               <select
                 value={searchBy}
@@ -1459,6 +1509,7 @@ const DefaultComponent: React.FC = () => {
                             value={newWaterUsage.amount}
                             onChange={(e) => setNewWaterUsage({...newWaterUsage, amount: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <div>
@@ -1468,6 +1519,7 @@ const DefaultComponent: React.FC = () => {
                             value={newWaterUsage.date}
                             onChange={(e) => setNewWaterUsage({...newWaterUsage, date: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <Button type="submit" className="w-full">Save Water Usage</Button>
@@ -1511,6 +1563,7 @@ const DefaultComponent: React.FC = () => {
                             value={newFertilizer.type}
                             onChange={(e) => setNewFertilizer({...newFertilizer, type: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <div>
@@ -1520,6 +1573,7 @@ const DefaultComponent: React.FC = () => {
                             value={newFertilizer.amount}
                             onChange={(e) => setNewFertilizer({...newFertilizer, amount: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <div>
@@ -1529,6 +1583,7 @@ const DefaultComponent: React.FC = () => {
                             value={newFertilizer.date}
                             onChange={(e) => setNewFertilizer({...newFertilizer, date: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <Button type="submit" className="w-full">Save Fertilizer Usage</Button>
@@ -1573,6 +1628,7 @@ const DefaultComponent: React.FC = () => {
                             value={newHarvest.amount}
                             onChange={(e) => setNewHarvest({...newHarvest, amount: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <div>
@@ -1582,6 +1638,7 @@ const DefaultComponent: React.FC = () => {
                             value={newHarvest.date}
                             onChange={(e) => setNewHarvest({...newHarvest, date: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <Button type="submit" className="w-full">Save Harvest</Button>
@@ -1624,6 +1681,7 @@ const DefaultComponent: React.FC = () => {
                             value={newRotation.crop}
                             onChange={(e) => setNewRotation({...newRotation, crop: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <div>
@@ -1633,6 +1691,7 @@ const DefaultComponent: React.FC = () => {
                             value={newRotation.startDate}
                             onChange={(e) => setNewRotation({...newRotation, startDate: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <div>
@@ -1642,6 +1701,7 @@ const DefaultComponent: React.FC = () => {
                             value={newRotation.endDate}
                             onChange={(e) => setNewRotation({...newRotation, endDate: e.target.value})}
                             required
+                            className="border rounded px-2 py-1"
                           />
                         </div>
                         <Button type="submit" className="w-full">Save Crop Rotation</Button>
@@ -1994,6 +2054,7 @@ const DefaultComponent: React.FC = () => {
                   value={newEvent.title}
                   onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                   required
+                  className="border rounded px-2 py-1"
                 />
               </div>
               <div>
@@ -2031,6 +2092,7 @@ const DefaultComponent: React.FC = () => {
                   value={newEvent.start.toISOString().split('T')[0]}
                   onChange={(e) => setNewEvent({ ...newEvent, start: new Date(e.target.value) })}
                   required
+                  className="border rounded px-2 py-1"
                 />
               </div>
               <div>
@@ -2040,6 +2102,7 @@ const DefaultComponent: React.FC = () => {
                   value={newEvent.end.toISOString().split('T')[0]}
                   onChange={(e) => setNewEvent({ ...newEvent, end: new Date(e.target.value) })}
                   required
+                  className="border rounded px-2 py-1"
                 />
               </div>
               <div>
@@ -2047,6 +2110,7 @@ const DefaultComponent: React.FC = () => {
                 <Input
                   value={newEvent.notes}
                   onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
+                  className="border rounded px-2 py-1"
                 />
               </div>
               <Button type="submit" className="w-full">Add Event</Button>
@@ -2265,34 +2329,52 @@ const DefaultComponent: React.FC = () => {
   return (
     <div>
       {showWalkthrough && <Walkthrough onComplete={handleWalkthroughComplete} setActiveTab={setActiveTab} />}
-      <div className="p-6 max-w-7xl mx-auto bg-white dark:bg-gray-900 dark:text-white">
+      <div className="p-6 max-w-7xl mx-auto bg-white">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Farm Management Dashboard</h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-3xl font-bold">Farm Management Dashboard</h1>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={handleExportData}>
+                  <Download className="mr-2 h-4 w-4" />
+                  <span>Export Data</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById('importDataFile')?.click()}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  <span>Import Data</span>
+                  <input
+                    type="file"
+                    id="importDataFile"
+                    className="hidden"
+                    accept=".json"
+                    onChange={handleImportData}
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleStartWalkthrough}>
+                  <Info className="mr-2 h-4 w-4" />
+                  <span>Start Tutorial</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           <Tabs defaultValue="overview" className="space-y-4" value={activeTab} onValueChange={setActiveTab}>
             <div className="flex justify-between items-center">
               <TabsList className="hidden md:flex">
                 <TabsTrigger data-walkthrough="overview-tab" value="overview">Overview</TabsTrigger>
                 <TabsTrigger data-walkthrough="water-tab" value="water">Water Management</TabsTrigger>
-                <TabsTrigger data-walkthrough="farms-tab" value="farms">Farms</TabsTrigger> {/* Changed from crops-tab and Crops */}
-                <TabsTrigger data-walkthrough="issues-tab" value="issues">Farm Issues</TabsTrigger> {/* Changed from Field Issues */}
+                <TabsTrigger data-walkthrough="farms-tab" value="farms">Farms</TabsTrigger>
+                <TabsTrigger data-walkthrough="issues-tab" value="issues">Farm Issues</TabsTrigger>
                 <TabsTrigger data-walkthrough="reports-tab" value="reports">Reports</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
                 <TabsTrigger data-walkthrough="crop-plan" value="cropplan">Crop Plan</TabsTrigger>
                 <TabsTrigger value="instructions"><Info className="h-4 w-4 mr-2" />Instructions</TabsTrigger>
               </TabsList>
-              <div className="flex items-center gap-4">
-                <a
-                  href="https://github.com/AMEND09/farmerapp/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  <Github className="h-5 w-5 mr-2" />
-                  Documentation
-                </a>
-                <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-              </div>
             </div>
 
             <TabsContent value="overview">
@@ -2336,6 +2418,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newWaterUsage.amount}
                                 onChange={(e) => setNewWaterUsage({...newWaterUsage, amount: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <div>
@@ -2345,6 +2428,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newWaterUsage.date}
                                 onChange={(e) => setNewWaterUsage({...newWaterUsage, date: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <Button type="submit" className="w-full">Save Water Usage</Button>
@@ -2384,6 +2468,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newFertilizer.type}
                                 onChange={(e) => setNewFertilizer({...newFertilizer, type: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <div>
@@ -2393,6 +2478,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newFertilizer.amount}
                                 onChange={(e) => setNewFertilizer({...newFertilizer, amount: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <div>
@@ -2402,6 +2488,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newFertilizer.date}
                                 onChange={(e) => setNewFertilizer({...newFertilizer, date: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <Button type="submit" className="w-full">Save Fertilizer Application</Button>
@@ -2442,6 +2529,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newHarvest.amount}
                                 onChange={(e) => setNewHarvest({...newHarvest, amount: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <div>
@@ -2451,6 +2539,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newHarvest.date}
                                 onChange={(e) => setNewHarvest({...newHarvest, date: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <Button type="submit" className="w-full">Save Harvest</Button>
@@ -2490,6 +2579,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newRotation.crop}
                                 onChange={(e) => setNewRotation({...newRotation, crop: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <div>
@@ -2499,6 +2589,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newRotation.startDate}
                                 onChange={(e) => setNewRotation({...newRotation, startDate: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <div>
@@ -2508,6 +2599,7 @@ const DefaultComponent: React.FC = () => {
                                 value={newRotation.endDate}
                                 onChange={(e) => setNewRotation({...newRotation, endDate: e.target.value})}
                                 required
+                                className="border rounded px-2 py-1"
                               />
                             </div>
                             <Button type="submit" className="w-full">Save Crop Rotation</Button>
@@ -2587,6 +2679,7 @@ const DefaultComponent: React.FC = () => {
                           value={newFarm.name}
                           onChange={(e) => setNewFarm({ ...newFarm, name: e.target.value })}
                           required
+                          className="border rounded px-2 py-1"
                         />
                       </div>
                       <div>
@@ -2596,6 +2689,7 @@ const DefaultComponent: React.FC = () => {
                           value={newFarm.size}
                           onChange={(e) => setNewFarm({ ...newFarm, size: e.target.value })}
                           required
+                          className="border rounded px-2 py-1"
                         />
                       </div>
                       <div>
@@ -2604,6 +2698,7 @@ const DefaultComponent: React.FC = () => {
                           value={newFarm.crop}
                           onChange={(e) => setNewFarm({ ...newFarm, crop: e.target.value })}
                           required
+                          className="border rounded px-2 py-1"
                         />
                       </div>
                       <div>
@@ -2619,6 +2714,7 @@ const DefaultComponent: React.FC = () => {
                                   updated[index].crop = e.target.value;
                                   setNewFarm({ ...newFarm, rotationHistory: updated });
                                 }}
+                                className="border rounded px-2 py-1"
                               />
                               <Input
                                 type="date"
@@ -2628,6 +2724,7 @@ const DefaultComponent: React.FC = () => {
                                   updated[index].startDate = e.target.value;
                                   setNewFarm({ ...newFarm, rotationHistory: updated });
                                 }}
+                                className="border rounded px-2 py-1"
                               />
                               <Input
                                 type="date"
@@ -2637,6 +2734,7 @@ const DefaultComponent: React.FC = () => {
                                   updated[index].endDate = e.target.value;
                                   setNewFarm({ ...newFarm, rotationHistory: updated });
                                 }}
+                                className="border rounded px-2 py-1"
                               />
                               <Button
                                 variant="ghost"
@@ -2686,6 +2784,7 @@ const DefaultComponent: React.FC = () => {
                           value={newFarm.name}
                           onChange={(e) => setNewFarm({ ...newFarm, name: e.target.value })}
                           required
+                          className="border rounded px-2 py-1"
                         />
                       </div>
                       <div>
@@ -2695,6 +2794,7 @@ const DefaultComponent: React.FC = () => {
                           value={newFarm.size}
                           onChange={(e) => setNewFarm({ ...newFarm, size: e.target.value })}
                           required
+                          className="border rounded px-2 py-1"
                         />
                       </div>
                       <div>
@@ -2703,6 +2803,7 @@ const DefaultComponent: React.FC = () => {
                           value={newFarm.crop}
                           onChange={(e) => setNewFarm({ ...newFarm, crop: e.target.value })}
                           required
+                          className="border rounded px-2 py-1"
                         />
                       </div>
                       <Button type="submit" className="w-full">
@@ -2844,19 +2945,43 @@ const DefaultComponent: React.FC = () => {
             </TabsContent>
           </Tabs>
         </div>
-        <Dialog open={!!confirmDelete} onOpenChange={() => setConfirmDelete(null)}>
-          <DialogContent className="bg-white text-black">
-            <DialogHeader>
-              <DialogTitle>Confirm Delete</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p>Are you sure you want to delete this {confirmDelete?.type}?</p>
-              <Button onClick={confirmDeleteAction} className="w-full">Confirm</Button>
-              <Button variant="outline" onClick={() => setConfirmDelete(null)} className="w-full">Cancel</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      <Dialog open={!!confirmDelete} onOpenChange={() => setConfirmDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Are you sure you want to delete this {confirmDelete?.type}?</p>
+            <Button onClick={confirmDeleteAction} className="w-full">Confirm</Button>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)} className="w-full">Cancel</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog 
+        open={!!importNotification} 
+        onOpenChange={() => setImportNotification(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {importNotification?.success ? 'Import Successful' : 'Import Failed'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>{importNotification?.message}</p>
+            <Button 
+              variant="outline" 
+              onClick={() => setImportNotification(null)} 
+              className="w-full"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
