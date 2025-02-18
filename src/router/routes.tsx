@@ -4,7 +4,7 @@ import Default from '../artifacts/default';
 
 export const router = createBrowserRouter([
   {
-    path: '/farmerapp',
+    path: '/',
     element: <App />,
     children: [
       {
@@ -13,4 +13,6 @@ export const router = createBrowserRouter([
       }
     ]
   }
-]);
+], {
+  basename: '/farmerapp'
+});
