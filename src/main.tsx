@@ -1,31 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { RouterProvider, createBrowserRouter } from 'react-router-dom';
-import routes from 'virtual:generated-pages-react';
-import Layout from './components/layout';
-import DefaultPage from './artifacts/default.tsx';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './router/routes';
 import './index.css';
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Layout><DefaultPage /></Layout>,
-    errorElement: <div>404 Not Found</div>, // Add a simple error element
-  },
-  ...routes.map((route) => ({
-    ...route,
-    element: <Layout>{route.element}</Layout>,
-    errorElement: <div>404 Not Found</div>, // Add a simple error element
-  }))
-], {
-  future: {
-    v7_relativeSplatPath: true,
-    v7_fetcherPersist: true,
-    v7_normalizeFormMethod: true,
-    v7_partialHydration: true,
-    v7_skipActionErrorRevalidation: true
-  }
-});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
