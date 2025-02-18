@@ -14,24 +14,26 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/*.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Farm Management Dashboard',
-        short_name: 'Farm App',
-        description: 'Track and manage your farm\'s water usage, fertilizer applications, and harvests',
-        theme_color: '#2C5282',
+        name: 'Farmer App',
+        short_name: 'FarmerApp',
         icons: [
           {
-            src: '/icons/icon-192x192.png',
+            src: 'icons/icon-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/icons/icon-512x512.png',
+            src: 'icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           }
-        ]
+        ],
+        start_url: '/farmerapp/',
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: '#000000'
       }
     })
   ],
@@ -44,5 +46,5 @@ export default defineConfig({
   build: {
     outDir: 'dist', // Ensure this matches the directory in the deploy script
   },
-  base: '/', // Add this line to set the base path
+  base: '/farmerapp/', // Update this to match your GitHub repository name
 });
