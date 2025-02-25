@@ -44,6 +44,7 @@ A comprehensive farm management dashboard application that helps agricultural pr
 - [📜 License](#-license)
 - [🔗 References](#-references)
 
+
 ## 🎯 Overview
 
 FarmerApp empowers farmers with tools to optimize agricultural operations through:
