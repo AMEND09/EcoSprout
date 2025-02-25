@@ -1809,14 +1809,13 @@ const DefaultComponent: React.FC = () => {
             </h2>
             <div className="mt-2 space-y-2 text-gray-600">
               <p>View reporting of farm activities:</p>
-              <ul className="list-disc pl-6 space-y-1">
-                <li>View by crop or all</li>
-                <li>View Water Usage</li>
-                <li>View Fertilizer Usage</li>
-                <li>View Harvest Information</li>
-                <li>View Harvest Information Graphically</li>
-              </ul>
-            </div>
+            <ul className="list-disc pl-6 space-y-1">
+              <li>View by crop or all</li>
+              <li>View Water Usage</li>
+              <li>View Fertilizer Usage</li>
+              <li>View Harvest Information</li>
+              <li>View Harvest Information Graphically</li>
+            </ul>
           </div>
           
           <div>
