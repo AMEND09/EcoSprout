@@ -196,6 +196,9 @@ src/
 
 ### Bug Fixes
 - [ ] Form exiting for every character typed on History Page
+- [ ] Harvest Information not showing up in numerical form
+- [ ] Service Worker Registration failing 
+- [ ] 404 Error, failed to get icon-192x192.png
 
 # 📜 License
 
