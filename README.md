@@ -7,14 +7,42 @@ A comprehensive farm management dashboard application that helps agricultural pr
 ![React](https://img.shields.io/badge/React-18.0.0-61dafb.svg)
 
 ## 📋 Table of Contents
-- [Overview](#-overview)
-- [Features](#-features)
-- [Technical Stack](##technical-stack)
-- [Getting Started](##getting-started)
-- [Screenshots](##-screenshots)
-- [Development](##-development)
-- [Future Roadmap](##future-roadmap)
-- [Contributing](##-contributing)
+
+### Getting Started
+- [🎯 Overview](#-overview)
+- [✨ Features](#-features)
+  - [Core Functionality](#core-functionality)
+  - [Smart Features](#smart-features)
+- [🚀 Installation](#-getting-started)
+  - [Local Setup](#local-setup)
+  - [Web Access](#web-access)
+
+### Technical Details
+- [🛠️ Technical Stack](#️-technical-stack)
+  - [Frontend Technologies](#frontend)
+  - [Data Management](#data-management)
+  - [Development Tools](#development-tools)
+- [🔧 Development](#-development)
+  - [Project Structure](#project-structure)
+  - [Contributing Guidelines](#contributing)
+
+### Documentation
+- [📸 Screenshots](#-screenshots)
+  - [Overview Page](#example-overview-page)
+  - [Field Management](#example-water-management-page)
+  - [Farm Issues](#example-farm-issues-page)
+  - [Reports & History](#example-reports-page)
+  - [Planning Tools](#example-crop-plan-page)
+  - [Settings & Help](#settings-dropdown)
+
+### Project Information
+- [🗺️ Future Roadmap](#️-future-roadmap)
+  - [Phase 1: Data Management](#phase-1-enhanced-data-management)
+  - [Phase 2: Advanced Features](#phase-2-advanced-features)
+  - [Phase 3: Sustainability](#phase-3-sustainability-focus)
+  - [Bug Fixes](#bug-fixes)
+- [📜 License](#-license)
+- [🔗 References](#-references)
 
 ## 🎯 Overview
 
