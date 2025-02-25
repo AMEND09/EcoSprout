@@ -6,7 +6,7 @@ A comprehensive farm management dashboard application that helps agricultural pr
 ![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
 ![React](https://img.shields.io/badge/React-18.0.0-61dafb.svg)
 
-## 📋 Table of Contents
+# 📋 Table of Contents
 
 ### Getting Started
 - [🎯 Overview](#-overview)
@@ -45,7 +45,7 @@ A comprehensive farm management dashboard application that helps agricultural pr
 - [🔗 References](#-references)
 
 
-## 🎯 Overview
+# 🎯 Overview
 
 FarmerApp empowers farmers with tools to optimize agricultural operations through:
 - Smart field management
@@ -54,7 +54,7 @@ FarmerApp empowers farmers with tools to optimize agricultural operations throug
 - Weather-informed decision making
 - Comprehensive task management
 
-## ✨ Features
+# ✨ Features
 
 ### Core Functionality
 - **Field Management** - Create, edit, and monitor field profiles
@@ -80,7 +80,7 @@ FarmerApp empowers farmers with tools to optimize agricultural operations throug
   - Due date tracking
   - Status monitoring
 
-## 🛠️ Technical Stack
+# 🛠️ Technical Stack
 
 ### Frontend
 - React 18.0.0 with TypeScript
@@ -99,7 +99,7 @@ FarmerApp empowers farmers with tools to optimize agricultural operations throug
 - Jest testing framework
 - GitHub Pages deployment
 
-## 🚀 Getting Started
+# 🚀 Getting Started
 
 1. **Clone the repository**
 ```bash
@@ -125,7 +125,7 @@ npm run build
 ### OR
 **[Web URL](https://amend09.github.io/farmerapp/)** (https://amend09.github.io/farmerapp/)
 
-## 📸 Screenshots
+# 📸 Screenshots
 
 ### Example Overview Page
 <img width="473" alt="{0C6CF37C-2761-4A6E-9A03-458537326712}" src="https://github.com/user-attachments/assets/956c8805-7d75-4509-9e4c-d2b7d84ab6ca" />
@@ -157,7 +157,7 @@ npm run build
 ### Interactive Walkthrough
 <img width="794" alt="{C6327967-506E-4971-9E98-7E7C1F228521}" src="https://github.com/user-attachments/assets/7101bc5d-4161-4bbb-ba17-3e4ec83fc13d" />
 
-## 🔧 Development
+# 🔧 Development
 
 ### Project Structure
 ```
@@ -178,7 +178,7 @@ src/
 4. Push to the branch
 5. Open a Pull Request
 
-## 🗺️ Future Roadmap
+# 🗺️ Future Roadmap
 
 ### Phase 1: Enhanced Data Management
 - [ ] Cloud storage integration
@@ -198,11 +198,11 @@ src/
 ### Bug Fixes
 - [ ] Form exiting for every character typed on History Page
 
-## 📜 License
+# 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 References
+# 🔗 References
 - [React Documentation](https://reactjs.org/docs)
 - [Vite Documentation](https://vitejs.dev/guide)
 - [Shadecn Documentation](https://ui.shadcn.com/docs)
