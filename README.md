@@ -183,7 +183,6 @@ src/
 ### Phase 1: Enhanced Data Management
 - [ ] Cloud storage integration
 - [ ] User authentication
-- [ ] Data export/import features
 
 ### Phase 2: Advanced Features
 - [ ] ML-based yield predictions
