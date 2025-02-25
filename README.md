@@ -173,5 +173,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 References
 - [React Documentation](https://reactjs.org/docs)
 - [Vite Documentation](https://vitejs.dev/guide)
+- [Shadecn Documentation](https://ui.shadcn.com/docs)
+- [Lucide](https://lucide.dev/)
 - [Open-Meteo API Docs](https://open-meteo.com/en/docs)
 - [Sustainable Agriculture Guidelines](https://saiplatform.org)
