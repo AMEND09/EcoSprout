@@ -148,7 +148,7 @@ npm run build
 ### Example Crop Plan Page
 <img width="480" alt="{AC2160A8-D9BC-43D2-A8C4-A3A64DFFAD02}" src="https://github.com/user-attachments/assets/0ba03f40-d643-4d92-9980-5f4d31f97ca9" />
 
-### Example Instructions Page
+### Instructions Page
 <img width="480" alt="{8C72FCBF-CC69-4222-8766-E0FF03ABE6F7}" src="https://github.com/user-attachments/assets/3109443f-b149-4331-842f-1b09238d4eec" />
 
 ### Settings Dropdown
