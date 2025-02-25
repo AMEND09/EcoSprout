@@ -1817,6 +1817,8 @@ const DefaultComponent: React.FC = () => {
                 <li>View Harvest Information Graphically</li>
               </ul>
             </div>
+          </div>
+          
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <RotateCw className="h-4 w-4" />
