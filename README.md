@@ -7,8 +7,8 @@ A comprehensive farm management dashboard application that helps agricultural pr
 ![React](https://img.shields.io/badge/React-18.0.0-61dafb.svg)
 
 ## 📋 Table of Contents
-- [Overview](##-overview)
-- [Features](##-features)
+- [Overview](#-overview)
+- [Features](#-features)
 - [Technical Stack](##technical-stack)
 - [Getting Started](##getting-started)
 - [Screenshots](##-screenshots)
