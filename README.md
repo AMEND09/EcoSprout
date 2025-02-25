@@ -94,7 +94,7 @@ npm run build
 ```
 
 ### OR
-**[Web URL](https://amend09.github.io/farmerapp/)** (https://amend09.github.io/farmerapp/?)
+**[Web URL](https://amend09.github.io/farmerapp/)** (https://amend09.github.io/farmerapp/)
 
 ## 📸 Screenshots
 
