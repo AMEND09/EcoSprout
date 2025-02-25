@@ -93,8 +93,8 @@ npm run dev
 npm run build
 ```
 
-  ### OR
-  **[Web URL](https://amend09.github.io/farmerapp/?)** (https://amend09.github.io/farmerapp/?)
+### \tOR
+\t**[Web URL](https://amend09.github.io/farmerapp/?)** (https://amend09.github.io/farmerapp/?)
 
 ## 📸 Screenshots
 
