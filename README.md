@@ -4,8 +4,8 @@ Farmerapp is a farm management dashboard application that helps you manage field
 
 ## Features
 
-- **Field Management**: Add, edit, and delete fields with details like name, size, and crop type.
-- **Water Usage Tracking**: Record and view water usage for each field.
+- **Field Management**: Add, edit, and delete fields with details like name, size, rotation history, and crop type.
+- **Water Usage Tracking**: View water usage for each field.
 - **Fertilizer Application Tracking**: Record and view fertilizer applications for each field.
 - **Harvest Tracking**: Record and view harvests for each field.
 - **Crop Rotation**: Track the rotation of crops on a farm. 
@@ -54,7 +54,10 @@ A comprehensive farm management solution designed to help farmers track and opti
 - Planned data structure and state management
 
 ### 2. Implementation
-- Created reusable components
+- Used Vite to setup React project
+- Created reusable components using React
+- Used components from Shadecn for charts, forms, and delete confirmation
+- Used icons from Lucide Dev
 - Implemented core features:
   - Farm management system
   - Water usage tracking
@@ -62,6 +65,8 @@ A comprehensive farm management solution designed to help farmers track and opti
   - Harvest recording
   - Weather integration
   - Sustainability metrics
+- Uses local browser storage for persistence.
+- Uses Github Pages for deployment
 
 ### 3. Testing
 - Unit testing with Jest
@@ -93,12 +98,12 @@ Comprehensive scoring system based on:
 ### 2. Data Management
 - Farm data structure with TypeScript interfaces
 - Local storage persistence
-- Data export/import capabilities
+- Data export/import capabilities with JSON
 
 ### 3. Interactive Features
 - Guided tutorial system
 - Calendar-based planning
-- Real-time weather integration
+- Real-time weather integration with Open Meteo
 - Issue tracking system
 
 ## Installation & Setup
@@ -132,12 +137,56 @@ Comprehensive scoring system based on:
    - Biodiversity metrics
    - Water conservation analytics
 
+## Example Images
+# Example Overview Page
+<img width="473" alt="{0C6CF37C-2761-4A6E-9A03-458537326712}" src="https://github.com/user-attachments/assets/956c8805-7d75-4509-9e4c-d2b7d84ab6ca" />
+
+# Example Water Management Page
+<img width="486" alt="{35A16A2A-B34A-4A7F-8EC2-C60CBAF2952B}" src="https://github.com/user-attachments/assets/f8770bc3-0de0-4905-a66a-3483d1609a29" />
+
+# Example Farms Page
+<img width="476" alt="{4FEEA304-420A-468C-9526-9232E2439964}" src="https://github.com/user-attachments/assets/7fa969b3-31b0-42aa-a412-b1e8ce0862b1" />
+
+# Example Farm Issues Page
+<img width="475" alt="{0F5D2283-AC49-497A-90B6-F66331B2DEF4}" src="https://github.com/user-attachments/assets/232fbee2-5530-4bbf-8f6e-8b65e9943d28" />
+
+# Example Reports Page
+<img width="488" alt="{5340F957-5BDB-41B4-88D9-E1E7C1035F49}" src="https://github.com/user-attachments/assets/2752ddb9-fc46-44e1-b46c-c6a2f88e4ac0" />
+
+# Example History Page
+<img width="479" alt="{1A754D47-93AB-4BC9-B7ED-CDB243D04EFB}" src="https://github.com/user-attachments/assets/59c3f6c7-fab0-45a9-a22b-a3d34469f273" />
+
+# Example Crop Plan Page
+<img width="480" alt="{AC2160A8-D9BC-43D2-A8C4-A3A64DFFAD02}" src="https://github.com/user-attachments/assets/0ba03f40-d643-4d92-9980-5f4d31f97ca9" />
+
+# Example Instructions Page
+<img width="480" alt="{8C72FCBF-CC69-4222-8766-E0FF03ABE6F7}" src="https://github.com/user-attachments/assets/3109443f-b149-4331-842f-1b09238d4eec" />
+
+# Settings Dropdown
+<img width="203" alt="{56494DF9-1F23-45B8-B4A7-6A9A730714C8}" src="https://github.com/user-attachments/assets/a95ace5c-1916-42ea-84b4-246fb15bba5a" />
+
+# Interactive Walkthrough
+<img width="794" alt="{C6327967-506E-4971-9E98-7E7C1F228521}" src="https://github.com/user-attachments/assets/7101bc5d-4161-4bbb-ba17-3e4ec83fc13d" />
+
+
+
+
+
+
+
+
+
+
+
+
 ## References
 1. React Documentation
 2. Vite Documentation
 3. TypeScript Handbook
 4. Open-Meteo API Documentation
 5. [Sustainable Agriculture Institute's Sustainable Performance Assessment Guidelines](https://saiplatform.org/uploads/Modules/Library/spa-guidelines-2.0_saiplatform.pdf)
+6. Lucide Dev
+7. Shadecn
 
 </div>
 
