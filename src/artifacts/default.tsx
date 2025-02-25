@@ -1827,6 +1827,23 @@ const DefaultComponent: React.FC = () => {
               <li>• Keep crop rotation records updated for better soil health tracking</li>
             </ul>
           </div>
+          
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <RotateCw className="h-4 w-4" />
+              Reports
+            </h2>
+            <div className="mt-2 space-y-2 text-gray-600">
+              <p>View reporting of farm activities:</p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>View by crop or all</li>
+                <li>View Water Usage</li>
+                <li>View Fertilizer Usage</li>
+                <li>View Harvest Information</li>
+                <li>View Harvest Information Graphically</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
