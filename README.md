@@ -171,13 +171,6 @@ src/
 └── index.css        # Global styles
 ```
 
-### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Commit changes
-4. Push to the branch
-5. Open a Pull Request
-
 # 🗺️ Future Roadmap
 
 ### Phase 1: Enhanced Data Management
@@ -196,7 +189,7 @@ src/
 
 ### Bug Fixes
 - [ ] Form exiting for every character typed on History Page
-- [ ] Harvest Information not showing up in numerical form
+- [x] Harvest Information not showing up in numerical form
 - [ ] Service Worker Registration failing 
 - [ ] 404 Error, failed to get icon-192x192.png
 
