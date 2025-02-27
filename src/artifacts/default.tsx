@@ -477,18 +477,38 @@ const calculateSustainabilityMetrics = (
     rotationScore: calculateRotationScore(farm),
   }));
 
-  const avgMetrics = farmMetrics.reduce((acc: MetricsAccumulator, metrics) => {
-    Object.keys(metrics).forEach(key => {
-      acc[key] = (acc[key] || 0) + metrics[key as keyof typeof metrics];
-    });
-    return acc;
-  }, {});
+  // Initialize accumulator with zeros
+  const avgMetrics: MetricsAccumulator = {
+    waterEfficiency: 0,
+    organicScore: 0,
+    harvestEfficiency: 0,
+    soilQualityScore: 0,
+    rotationScore: 0
+  };
+  
+  // Track how many farms have each metric
+  const metricCounts: MetricsAccumulator = {
+    waterEfficiency: 0,
+    organicScore: 0,
+    harvestEfficiency: 0,
+    soilQualityScore: 0,
+    rotationScore: 0
+  };
 
-  Object.keys(avgMetrics).forEach(key => {
-    avgMetrics[key] /= farms.length;
+  // Sum up all valid metrics (non-zero values)
+  farmMetrics.forEach(metrics => {
+    Object.keys(metrics).forEach(key => {
+      const typedKey = key as keyof typeof metrics;
+      const value = metrics[typedKey];
+      if (value > 0) {
+        avgMetrics[key] = (avgMetrics[key] || 0) + value;
+        metricCounts[key]++;
+      }
+    });
   });
 
-  const weights = {
+  // Calculate averages only for metrics that have values
+  const weights: MetricsAccumulator = {
     waterEfficiency: 0.25,
     organicScore: 0.20,
     harvestEfficiency: 0.20,
@@ -496,9 +516,25 @@ const calculateSustainabilityMetrics = (
     rotationScore: 0.15,
   };
 
-  const overallScore = Object.keys(weights).reduce((sum, key) => {
-    return sum + avgMetrics[key] * weights[key as keyof typeof weights];
-  }, 0);
+  let totalWeight = 0;
+  let overallScore = 0;
+
+  // Calculate for metrics that have values
+  Object.keys(avgMetrics).forEach(key => {
+    if (metricCounts[key] > 0) {
+      avgMetrics[key] /= metricCounts[key];
+      overallScore += avgMetrics[key] * weights[key];
+      totalWeight += weights[key];
+    } else {
+      // Set metrics with no data to null or zero, so they don't affect the score
+      avgMetrics[key] = 0;
+    }
+  });
+
+  // Adjust the overall score if we're not using all metrics
+  if (totalWeight > 0 && totalWeight < 1) {
+    overallScore = overallScore / totalWeight;
+  }
 
   return {
     overallScore: Math.round(overallScore),
@@ -2299,7 +2335,18 @@ const DefaultComponent: React.FC = () => {
                   <LayoutDashboard className="h-6 w-6 text-purple-500 mb-2" />
                   <p className="text-sm text-gray-500">Total Harvest</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {/* ...existing code... */}
+                    {getFilteredFarms()
+                      .reduce(
+                        (total, farm) =>
+                          total +
+                          farm.harvestHistory.reduce(
+                            (sum, record) => sum + record.amount,
+                            0
+                          ),
+                        0
+                      )
+                      .toLocaleString()}{" "}
+                    bu
                   </p>
                 </div>
               </div>
