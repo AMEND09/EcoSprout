@@ -9,6 +9,9 @@ import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveConta
 import { Droplet, Leaf, LayoutDashboard, Info, AlertTriangle, Bug, Trash2, Edit3, RotateCw, Download, Upload, Settings } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import ReportsPage from '@/components/ReportsPage';
+import { FinancialEntry } from '@/types/financialTypes';
+import FinancialPlanning from '@/components/FinancialPlanning';
 
 interface WaterUsage {
   amount: number;
@@ -578,6 +581,7 @@ interface ExportData {
   tasks: Task[];
   issues: Issue[];
   cropPlanEvents: CropPlanEvent[];
+  financialData?: FinancialEntry[]; // Make this optional for backward compatibility
 }
 
 const DefaultComponent: React.FC = () => {
@@ -1002,7 +1006,8 @@ const DefaultComponent: React.FC = () => {
       farms,
       tasks,
       issues,
-      cropPlanEvents
+      cropPlanEvents,
+      financialData // Add financial data to the export
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -1019,7 +1024,7 @@ const DefaultComponent: React.FC = () => {
   const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
+  
     const reader = new FileReader();
     reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
@@ -1029,29 +1034,41 @@ const DefaultComponent: React.FC = () => {
         if (!importedData.version || !importedData.exportDate) {
           throw new Error('Invalid file format');
         }
-
-        // Convert date strings back to Date objects in cropPlanEvents
+  
+        // Process the cropPlanEvents to properly convert date strings to Date objects
         const processedEvents = importedData.cropPlanEvents.map(event => ({
           ...event,
           start: new Date(event.start),
           end: new Date(event.end)
         }));
-
+  
         // Update all state
-        setFarms(importedData.farms);
-        setTasks(importedData.tasks);
-        setIssues(importedData.issues);
-        setCropPlanEvents(processedEvents);
-
+        setFarms(importedData.farms || []);
+        setTasks(importedData.tasks || []);
+        setIssues(importedData.issues || []);
+        setCropPlanEvents(processedEvents || []);
+  
+        // Also import financial data if present
+        if (Array.isArray(importedData.financialData)) {
+          setFinancialData(importedData.financialData);
+        }
+  
         setImportNotification({
           success: true,
           message: 'Data imported successfully'
         });
+        
+        // Reset the file input so the same file can be selected again if needed
+        event.target.value = '';
       } catch (error) {
+        console.error("Import error:", error);
         setImportNotification({
           success: false,
-          message: 'Error importing file: Invalid format'
+          message: 'Error importing file: Invalid format or corrupted data'
         });
+        
+        // Reset the file input
+        event.target.value = '';
       }
     };
     reader.readAsText(file);
@@ -1508,6 +1525,8 @@ const DefaultComponent: React.FC = () => {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
+                
+                {/* Dialogs for editing entries */}
                 {entry.type === 'Water Usage' && (
                   <Dialog 
                     open={isEditingWaterUsage} 
@@ -1519,7 +1538,7 @@ const DefaultComponent: React.FC = () => {
                       }
                     }}
                   >
-                    <DialogContent>
+                    <DialogContent onClick={(e) => e.stopPropagation()}>
                       <DialogHeader>
                         <DialogTitle>Edit Water Usage</DialogTitle>
                       </DialogHeader>
@@ -1563,6 +1582,7 @@ const DefaultComponent: React.FC = () => {
                     </DialogContent>
                   </Dialog>
                 )}
+
                 {entry.type === 'Fertilizer Usage' && (
                   <Dialog 
                     open={isEditingFertilizer} 
@@ -1574,7 +1594,7 @@ const DefaultComponent: React.FC = () => {
                       }
                     }}
                   >
-                    <DialogContent>
+                    <DialogContent onClick={(e) => e.stopPropagation()}>
                       <DialogHeader>
                         <DialogTitle>Edit Fertilizer Usage</DialogTitle>
                       </DialogHeader>
@@ -1627,6 +1647,7 @@ const DefaultComponent: React.FC = () => {
                     </DialogContent>
                   </Dialog>
                 )}
+
                 {entry.type === 'Harvest' && (
                   <Dialog 
                     open={isEditingHarvest} 
@@ -1638,7 +1659,7 @@ const DefaultComponent: React.FC = () => {
                       }
                     }}
                   >
-                    <DialogContent>
+                    <DialogContent onClick={(e) => e.stopPropagation()}>
                       <DialogHeader>
                         <DialogTitle>Edit Harvest</DialogTitle>
                       </DialogHeader>
@@ -1682,6 +1703,7 @@ const DefaultComponent: React.FC = () => {
                     </DialogContent>
                   </Dialog>
                 )}
+
                 {entry.type === 'Crop Rotation' && (
                   <Dialog 
                     open={isAddingRotation} 
@@ -1692,7 +1714,7 @@ const DefaultComponent: React.FC = () => {
                       }
                     }}
                   >
-                    <DialogContent>
+                    <DialogContent onClick={(e) => e.stopPropagation()}>
                       <DialogHeader>
                         <DialogTitle>Edit Crop Rotation</DialogTitle>
                       </DialogHeader>
@@ -1770,7 +1792,6 @@ const DefaultComponent: React.FC = () => {
           >
             Start Interactive Walkthrough
           </Button>
-
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" />
@@ -1788,7 +1809,6 @@ const DefaultComponent: React.FC = () => {
               </ul>
             </div>
           </div>
-
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Droplet className="h-4 w-4" />
@@ -1804,7 +1824,6 @@ const DefaultComponent: React.FC = () => {
               </ul>
             </div>
           </div>
-
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Leaf className="h-4 w-4" />
@@ -1821,7 +1840,6 @@ const DefaultComponent: React.FC = () => {
               </ul>
             </div>
           </div>
-
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
@@ -1837,23 +1855,23 @@ const DefaultComponent: React.FC = () => {
               </ul>
             </div>
           </div>
-          
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Info className="h-4 w-4" />
-              Reports
+              Reports & Analytics
             </h2>
             <div className="mt-2 space-y-2 text-gray-600">
-              <p>View reporting of farm activities:</p>
-            <ul className="list-disc pl-6 space-y-1">
-              <li>View by crop or all</li>
-              <li>View Water Usage</li>
-              <li>View Fertilizer Usage</li>
-              <li>View Harvest Information</li>
-              <li>View Harvest Information Graphically</li>
-            </ul>
+              <p>Get detailed insights about your farm's performance:</p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>Generate comprehensive sustainability reports</li>
+                <li>Export sustainability reports as PDFs</li>
+                <li>Track financial performance with charts and breakdowns</li>
+                <li>Calculate ROI for farm investments</li>
+                <li>Monitor key metrics like water usage, harvest yields, and chemical reduction</li>
+                <li>Get personalized recommendations to improve sustainability</li>
+              </ul>
+            </div>
           </div>
-          
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <RotateCw className="h-4 w-4" />
@@ -1869,16 +1887,17 @@ const DefaultComponent: React.FC = () => {
               </ul>
             </div>
           </div>
-
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h2 className="text-lg font-bold text-blue-700">Tips</h2>
-            <ul className="mt-2 space-y-2 text-blue-600">
-              <li>• Use the walkthrough feature above to learn the basics</li>
-              <li>• Regular data entry helps maintain accurate sustainability scores</li>
-              <li>• Check weather forecasts before scheduling water applications</li>
-              <li>• Keep crop rotation records updated for better soil health tracking</li>
+            <h2 className="text-lg font-bold text-blue-700">Sustainability Scoring</h2>
+            <p className="text-sm text-blue-600 mb-2">The system calculates your sustainability score based on:</p>
+            <ul className="space-y-1 text-blue-600 text-sm">
+              <li>• <strong>Water Efficiency</strong>: Based on water usage patterns, irrigation consistency, and crop-specific needs</li>
+              <li>• <strong>Organic Practices</strong>: Calculated from your organic vs. chemical fertilizer ratio</li>
+              <li>• <strong>Harvest Efficiency</strong>: Measures yield consistency and timing optimization</li>
+              <li>• <strong>Soil Quality</strong>: Derived from soil pH, organic matter content, and management practices</li>
+              <li>• <strong>Crop Rotation</strong>: Evaluates rotation frequency, diversity, and consistency</li>
             </ul>
-          </div>
+            <p className="text-sm text-blue-600 mt-2">All metrics are calculated from your actual farm data - the more data you enter, the more accurate your score will be!</p>
           </div>
         </div>
       </CardContent>
@@ -1896,19 +1915,16 @@ const DefaultComponent: React.FC = () => {
       type: 'planting',
       notes: ''
     });
-
     const daysInMonth = new Date(
       selectedDate.getFullYear(),
       selectedDate.getMonth() + 1,
       0
     ).getDate();
-
     const firstDayOfMonth = new Date(
       selectedDate.getFullYear(),
       selectedDate.getMonth(),
       1
     ).getDay();
-
     const handleAddEvent = (e: React.FormEvent) => {
       e.preventDefault();
       setCropPlanEvents([...cropPlanEvents, {
@@ -1926,7 +1942,6 @@ const DefaultComponent: React.FC = () => {
         notes: ''
       });
     };
-
     const getEventsForDay = (date: Date) => {
       return cropPlanEvents.filter(event => {
         const eventDate = new Date(event.start);
@@ -1935,21 +1950,18 @@ const DefaultComponent: React.FC = () => {
                eventDate.getFullYear() === date.getFullYear();
       });
     };
-
     const eventColors = {
       planting: 'bg-blue-100 text-blue-800',
       fertilizing: 'bg-green-100 text-green-800',
       harvesting: 'bg-purple-100 text-purple-800',
       other: 'bg-gray-100 text-gray-800'
     };
-
     const handleExportPlan = () => {
       const exportData = {
         version: "1.0",
         exportDate: new Date().toISOString(),
         events: cropPlanEvents
       };
-  
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1960,32 +1972,26 @@ const DefaultComponent: React.FC = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     };
-  
     const handleImportPlan = (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
-  
       const reader = new FileReader();
       reader.onload = (e: ProgressEvent<FileReader>) => {
         try {
           const importedData = JSON.parse(e.target?.result as string);
-          
           // Validate the imported data
           if (!importedData.events || !Array.isArray(importedData.events)) {
             throw new Error('Invalid file format');
           }
-  
           // Convert date strings back to Date objects
           const processedEvents = importedData.events.map((event: any) => ({
             ...event,
             start: new Date(event.start),
             end: new Date(event.end)
           }));
-  
           // Merge with existing events, avoid duplicates by checking IDs
           const existingIds = new Set(cropPlanEvents.map(e => e.id));
           const newEvents = processedEvents.filter((e: CropPlanEvent) => !existingIds.has(e.id));
-          
           setCropPlanEvents([...cropPlanEvents, ...newEvents]);
         } catch (error) {
           alert('Error importing file: Invalid format');
@@ -1993,11 +1999,9 @@ const DefaultComponent: React.FC = () => {
       };
       reader.readAsText(file);
     };
-
     const handleDeleteEvent = (eventId: number) => {
       setConfirmDelete({ id: 0, type: 'cropEvent', eventId });
     };
-
     return (
       <Card>
         <CardHeader>
@@ -2061,7 +2065,6 @@ const DefaultComponent: React.FC = () => {
             {Array.from({ length: daysInMonth }).map((_, index) => {
               const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), index + 1);
               const events = getEventsForDay(date);
-              
               return (
                 <div key={index} className="p-2 border min-h-[100px]">
                   <div className="font-medium">{index + 1}</div>
@@ -2094,7 +2097,6 @@ const DefaultComponent: React.FC = () => {
             })}
           </div>
         </CardContent>
-
         <Dialog open={isAddingEvent} onOpenChange={setIsAddingEvent}>
           <DialogContent>
             <DialogHeader>
@@ -2178,10 +2180,8 @@ const DefaultComponent: React.FC = () => {
     const nextTwoWeeks = useMemo(() => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
       const twoWeeksFromNow = new Date(today);
       twoWeeksFromNow.setDate(today.getDate() + 14);
-  
       return cropPlanEvents
         .filter(event => {
           const eventDate = new Date(event.start);
@@ -2191,7 +2191,6 @@ const DefaultComponent: React.FC = () => {
         .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
         .slice(0, 5); // Show only next 5 events for cleaner UI
     }, [cropPlanEvents]);
-  
     return (
       <Card>
         <CardHeader>
@@ -2204,7 +2203,7 @@ const DefaultComponent: React.FC = () => {
           <div className="space-y-2">
             {nextTwoWeeks.length > 0 ? (
               nextTwoWeeks.map(event => (
-                <div 
+                <div
                   key={event.id} 
                   className={`p-2 rounded ${
                     event.type === 'planting' ? 'bg-blue-50 border-l-4 border-blue-500' :
@@ -2243,7 +2242,7 @@ const DefaultComponent: React.FC = () => {
       </Card>
     );
   };
-  
+
   const FarmIssues = () => {
     return (
       <Card>
@@ -2270,7 +2269,7 @@ const DefaultComponent: React.FC = () => {
                       {issue.severity}
                     </span>
                   </div>
-                  <div className="mt-2 text-sm text-gray-500">
+                   <div className="mt-2 text-sm text-gray-500">
                     <p>Reported: {new Date(issue.dateReported).toLocaleDateString()}</p>
                   </div>
                 </div>
@@ -2284,110 +2283,23 @@ const DefaultComponent: React.FC = () => {
     );
   };
 
-  const Reports = () => (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Farm Performance Report</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CropFilter />
-          {getFilteredFarms().length > 0 ? (
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <Droplet className="h-6 w-6 text-blue-500 mb-2" />
-                  <p className="text-sm text-gray-500">Total Water Usage</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {getFilteredFarms()
-                      .reduce(
-                        (total, farm) =>
-                          total +
-                          farm.waterHistory.reduce(
-                            (sum, record) => sum + record.amount,
-                            0
-                          ),
-                        0
-                      )
-                      .toLocaleString()}{" "}
-                    gal
-                  </p>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <Leaf className="h-6 w-6 text-green-500 mb-2" />
-                  <p className="text-sm text-gray-500">Total Fertilizer Used</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {getFilteredFarms()
-                      .reduce(
-                        (total, farm) =>
-                          total +
-                          farm.fertilizerHistory.reduce(
-                            (sum, record) => sum + record.amount,
-                            0
-                          ),
-                        0
-                      )
-                      .toLocaleString()}{" "}
-                    lbs
-                  </p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <LayoutDashboard className="h-6 w-6 text-purple-500 mb-2" />
-                  <p className="text-sm text-gray-500">Total Harvest</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {getFilteredFarms()
-                      .reduce(
-                        (total, farm) =>
-                          total +
-                          farm.harvestHistory.reduce(
-                            (sum, record) => sum + record.amount,
-                            0
-                          ),
-                        0
-                      )
-                      .toLocaleString()}{" "}
-                    bu
-                  </p>
-                </div>
-              </div>
+  const [financialData, setFinancialData] = useState<FinancialEntry[]>(() => {
+    const savedData = localStorage.getItem('financialData');
+    return savedData ? JSON.parse(savedData) : [];
+  });
 
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={getFilteredFarms().flatMap((farm) =>
-                      farm.harvestHistory.map((harvest) => ({
-                        farm: farm.name,
-                        amount: harvest.amount,
-                        date: new Date(harvest.date).toLocaleDateString(),
-                      }))
-                    )}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar
-                      dataKey="amount"
-                      fill="#8884d8"
-                      name="Harvest Amount (bu)"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center p-8">
-              <p className="text-gray-500">
-                {farms.length === 0
-                  ? "No data available. Add farms and record activities to see reports."
-                  : "No farms found for the selected crop."}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+  useEffect(() => {
+    localStorage.setItem('financialData', JSON.stringify(financialData));
+  }, [financialData]);
+
+  const Reports = () => (
+    <ReportsPage 
+      farms={farms} 
+      weatherData={weatherData} 
+      cropFilter={cropFilter}
+      financialData={financialData}
+      setFinancialData={setFinancialData}
+    />
   );
 
   return (
@@ -2435,6 +2347,7 @@ const DefaultComponent: React.FC = () => {
                 <TabsTrigger data-walkthrough="farms-tab" value="farms">Farms</TabsTrigger>
                 <TabsTrigger data-walkthrough="issues-tab" value="issues">Farm Issues</TabsTrigger>
                 <TabsTrigger data-walkthrough="reports-tab" value="reports">Reports</TabsTrigger>
+                <TabsTrigger data-walkthrough="financial-tab" value="financial">Financial Planning</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
                 <TabsTrigger data-walkthrough="crop-plan" value="cropplan">Crop Plan</TabsTrigger>
                 <TabsTrigger value="instructions"><Info className="h-4 w-4 mr-2" />Instructions</TabsTrigger>
@@ -2499,7 +2412,6 @@ const DefaultComponent: React.FC = () => {
                           </form>
                         </DialogContent>
                       </Dialog>
-
                       <Dialog open={isAddingFertilizer} onOpenChange={setIsAddingFertilizer}>
                         <DialogTrigger asChild>
                           <Button className="w-full bg-green-500 hover:bg-green-600">
@@ -2555,11 +2467,10 @@ const DefaultComponent: React.FC = () => {
                                 className="border rounded px-2 py-1"
                               />
                             </div>
-                            <Button type="submit" className="w-full">Save Fertilizer Application</Button>
+                            <Button type="submit" className="w-full">Save Fertilizer Usage</Button>
                           </form>
                         </DialogContent>
                       </Dialog>
-
                       <Dialog open={isAddingHarvest} onOpenChange={setIsAddingHarvest}>
                         <DialogTrigger asChild>
                           <Button className="w-full bg-purple-500 hover:bg-purple-600">
@@ -2610,7 +2521,6 @@ const DefaultComponent: React.FC = () => {
                           </form>
                         </DialogContent>
                       </Dialog>
-
                       <Dialog open={isAddingRotation} onOpenChange={setIsAddingRotation}>
                         <DialogTrigger asChild>
                           <Button className="w-full bg-orange-500 hover:bg-orange-600">
@@ -2680,11 +2590,9 @@ const DefaultComponent: React.FC = () => {
                 <TaskManager />
               </div>
             </TabsContent>
-
             <TabsContent value="issues">
               <IssueTracker />
             </TabsContent>
-
             <TabsContent value="water">
               <div className="space-y-4">
                 <Card>
@@ -2720,17 +2628,15 @@ const DefaultComponent: React.FC = () => {
                 </Card>
               </div>
             </TabsContent>
-
             <TabsContent value="farms">
               <div className="space-y-4">
-                <Button
+                <Button 
                   data-walkthrough="add-farm"
                   onClick={() => setIsAddingFarm(true)}
                   className="mb-4"
                 >
                   Add New Farm
                 </Button>
-
                 <Dialog open={isAddingFarm} onOpenChange={setIsAddingFarm}>
                   <DialogContent>
                     <DialogHeader>
@@ -2835,7 +2741,6 @@ const DefaultComponent: React.FC = () => {
                     </form>
                   </DialogContent>
                 </Dialog>
-
                 <Dialog open={isEditingFarm} onOpenChange={setIsEditingFarm}>
                   <DialogContent>
                     <DialogHeader>
@@ -2876,7 +2781,6 @@ const DefaultComponent: React.FC = () => {
                     </form>
                   </DialogContent>
                 </Dialog>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {farms.length > 0 ? (
                     farms.map((farm) => (
@@ -2891,7 +2795,6 @@ const DefaultComponent: React.FC = () => {
                           <div className="space-y-2">
                             <p className="text-gray-500">Current Crop: {farm.crop}</p>
                             <p className="text-gray-500">Size: {farm.size.toLocaleString()} acres</p>
-                            
                             {farm.rotationHistory && farm.rotationHistory.length > 0 && (
                               <div className="mt-4">
                                 <p className="font-medium mb-2">Crop Rotation History</p>
@@ -2904,7 +2807,6 @@ const DefaultComponent: React.FC = () => {
                                 </div>
                               </div>
                             )}
-                            
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <Droplet className="h-4 w-4 text-blue-500" />
@@ -2961,7 +2863,7 @@ const DefaultComponent: React.FC = () => {
                                   setNewFarm({ 
                                     name: farm.name, 
                                     size: farm.size, 
-                                    crop: farm.crop,
+                                    crop: farm.crop, 
                                     rotationHistory: farm.rotationHistory || []
                                   });
                                   setIsEditingFarm(true);
@@ -2991,21 +2893,23 @@ const DefaultComponent: React.FC = () => {
                 </div>
               </div>
             </TabsContent>
-
             <TabsContent value="reports">
               <Reports />
             </TabsContent>
-
             <TabsContent value="instructions">
               <Instructions onStartWalkthrough={handleStartWalkthrough} />
             </TabsContent>
-
             <TabsContent value="history">
               <HistoryPage />
             </TabsContent>
-
             <TabsContent value="cropplan">
               <CropPlanCalendar />
+            </TabsContent>
+            <TabsContent value="financial">
+              <FinancialPlanning 
+                farms={farms}
+                financialData={financialData}
+              />
             </TabsContent>
           </Tabs>
         </div>
