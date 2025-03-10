@@ -176,6 +176,7 @@ src/
 ### Phase 1: Enhanced Data Management
 - [ ] Cloud storage integration
 - [ ] User authentication
+- [ ] Reports Exporting
 
 ### Phase 2: Advanced Features
 - [ ] ML-based yield predictions
@@ -191,7 +192,7 @@ src/
 - [ ] Form exiting for every character typed on History Page
 - [x] Harvest Information not showing up in numerical form
 - [ ] Service Worker Registration failing 
-- [ ] 404 Error, failed to get icon-192x192.png
+- [x] 404 Error, failed to get icon-192x192.png
 
 # 📜 License
 
