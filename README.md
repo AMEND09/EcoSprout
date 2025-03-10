@@ -1,4 +1,4 @@
-# 🌾 Farmer App
+# 🌾 EcoSprout
 
 A comprehensive farm management dashboard application that helps agricultural professionals manage fields, track resources, and make data-driven decisions for sustainable farming.
 
