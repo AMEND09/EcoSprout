@@ -47,7 +47,7 @@ A comprehensive farm management dashboard application that helps agricultural pr
 
 # 🎯 Overview
 
-FarmerApp empowers farmers with tools to optimize agricultural operations through:
+EcoSprout empowers farmers with tools to optimize agricultural operations through:
 - Smart field management
 - Resource usage tracking
 - Sustainability metrics
