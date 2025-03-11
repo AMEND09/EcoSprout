@@ -10,7 +10,7 @@ function App() {
         <Outlet />
       </main>
       <footer>
-        {/* Add your footer content here */}
+        {/*Application made by Aditya Mendiratta & Matthew Fabricio Cruz for TSA Software Development 2025*/}
       </footer>
     </div>
   );
