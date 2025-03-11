@@ -14,5 +14,5 @@ export const router = createBrowserRouter([
     ]
   }
 ], {
-  basename: '/farmerapp'
+  basename: '/EcoSprout'
 });
